@@ -8,7 +8,7 @@ Versões estáveis em 2026-10-01. Fixe a versão maior (`^`) no `package.json`, 
 
 | Camada | Pacote | Versão |
 | --- | --- | --- |
-| Runtime | Node | 22 LTS (22.12 ou mais nova) |
+| Runtime | Node | 26 (26.10 ou mais nova; LTS a partir de 28/10/2026), fixado em `.nvmrc` |
 | Runtime | pnpm | 10 |
 | API | NestJS (`@nestjs/*`) | 12.1 |
 | API | `@nestjs/swagger` | 12.0 |
@@ -30,6 +30,39 @@ Versões estáveis em 2026-10-01. Fixe a versão maior (`^`) no `package.json`, 
 | Qualidade | ESLint (flat config) + typescript-eslint / Prettier | 10 + 8 / 3 |
 
 > **Atenção:** no npm, a tag `latest` do CLI `prisma` aponta para o 8.0.0-rc, que ainda não é estável e muda bastante coisa. Instale `prisma@7.10.0` e `@prisma/client@7.10.0` com versão exata.
+
+### 1.1 Node 26
+
+Escolhido em 2026-10-01 no lugar do Node 22, para aproveitar as novidades. Lançado em 05/05/2026, vira LTS em 28/10/2026 e tem suporte até 30/04/2029. Todas as dependências do projeto aceitam o 26, e a fase 0 foi verificada nele (testes, builds e imagem Docker).
+
+**O que muda na prática:**
+
+- **Sem corepack.** O Node 25+ não traz mais o corepack. Instale o pnpm com `npm install -g pnpm@10`. Na imagem Docker, o pnpm é instalado na versão do campo `packageManager`. Na CI, o `pnpm/action-setup` já cuida disso.
+- **TypeScript direto no Node (type stripping) não serve para a API.** Não suporta decorators nem gera os metadados de que o Nest precisa. A API continua compilada (tsc em produção, SWC em desenvolvimento e testes). Scripts soltos sem decorators, como seed e utilitários, podem rodar `.ts` direto.
+
+**Adotar:**
+
+| Recurso | Estado | Uso no Varal |
+| --- | --- | --- |
+| `Temporal` (global, sem flag) | Novo no 26 | Datas do domínio em `America/Sao_Paulo`: dia do turno, "hoje", horários de relatório (spec 07), atraso de itens. Prisma, `pg` e zod continuam com `Date`; a conversão fica nas bordas (repositórios e DTOs). Só calendário ISO. |
+| `AsyncLocalStorage` (sobre AsyncContextFrame) | Estável, mais rápido | Contexto da requisição: organização, ator, aparelho e id de correlação (spec 01, seção 6) |
+| `using` / `await using` | Estável | Liberar recursos com garantia: locks, conexões avulsas, recursos de teste |
+| `process.loadEnvFile` / `--env-file-if-exists` | Estável | Carregar `.env.local` sem o pacote dotenv |
+| `node --run`, `--watch` | Estável | Scripts e recarga em desenvolvimento |
+| `WebSocket` global | Estável | Cliente de tempo real em testes da API (o app continua com o Socket.IO) |
+| `Promise.try`, `Error.isError`, `RegExp.escape`, iterator helpers, `Map.prototype.getOrInsert` | Estável | Código mais simples onde couber |
+
+**Evitar por enquanto:**
+
+- `URLPattern`: ainda experimental.
+- Permission model (`--permission`) em produção: ainda não testado com Prisma, pg-boss e Socket.IO.
+- `node:sqlite`, `node:ffi` e VFS: sem uso no projeto.
+
+**Cuidados:**
+
+- Algumas tags antigas de `node:26-alpine` saíram sem `Temporal`; a 26.10 tem. Quando o código passar a usar `Temporal`, um teste confere que ele existe.
+- O 26 removeu APIs legadas (`_stream_*`, `writeHeader`) e passou a desaconselhar `module.register()`. Dependência que quebrar por isso é atualizada ou trocada.
+- Fontes: [Node 26.0.0](https://nodejs.org/en/blog/release/v26.0.0), [Node 26.10.0](https://nodejs.org/en/blog/release/v26.10.0), [calendário de releases](https://github.com/nodejs/Release).
 
 ## 2. Escolhas técnicas
 
@@ -73,7 +106,7 @@ Versões estáveis em 2026-10-01. Fixe a versão maior (`^`) no `package.json`, 
 - **GitHub Actions** (plano free: 2.000 minutos por mês). Em cada repositório de código: lint, tipos, testes e build em todo PR e na `main`; cancelamento de execuções antigas da mesma branch; cache do pnpm; documentação não dispara a CI. Artefatos guardados por 1 a 3 dias.
 - **Título do PR** checado por action (Conventional Commits). No plano free o check não bloqueia o merge; serve de aviso.
 - **Versões:** release-please em cada repositório de código. Ele mantém um PR de release com versão e changelog; o merge desse PR cria a tag, e a tag dispara o deploy. Assim todo deploy passa por um merge explícito.
-- **Imagem da API** no GitHub Container Registry, construída em várias etapas sobre `node:22-alpine` (o Prisma 7 não depende mais do motor em Rust). Tags `sha-<curto>` e `vX.Y.Z`; produção sempre fixa a versão.
+- **Imagem da API** no GitHub Container Registry, construída em várias etapas sobre `node:26-alpine` (o Prisma 7 não depende mais do motor em Rust). Tags `sha-<curto>` e `vX.Y.Z`; produção sempre fixa a versão.
 - **Deploy (a decidir antes da fase 2).** Proposta: GitHub Actions via SSH, com um usuário `deploy` no VPS cuja chave só pode rodar o script de deploy do `varal-infra`. O script é o mesmo se o deploy for disparado à mão:
   - **API:** `deploy.sh api vX.Y.Z` baixa a imagem, roda `prisma migrate deploy` num container temporário e só então troca o container `varal-api`. Migrations seguem o padrão expandir e depois contrair, para a versão anterior continuar funcionando durante a troca.
   - **Apps:** o build vai por rsync para `/opt/nginx/html/<app>/releases/<versão>`, e um link `current` troca de versão de uma vez. Voltar versão é trocar o link.

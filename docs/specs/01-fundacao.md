@@ -46,7 +46,7 @@ varal/                 (pasta comum, não é repositório)
 └── varal-infra/
 ```
 
-- Node 22 LTS e TypeScript em modo `strict` nos três projetos de código. Gerenciador de pacotes: pnpm.
+- Node 26 (vira LTS em 28/10/2026) e TypeScript em modo `strict` nos três projetos de código, com a versão em `.nvmrc`. Gerenciador de pacotes: pnpm.
 - Validação: **zod** na API e nos formulários dos apps.
 - ORM: **Prisma**, com migrations versionadas no `varal-web-api`.
 
