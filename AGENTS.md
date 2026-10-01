@@ -70,7 +70,68 @@ Siga [`docs/specs/08-identidade-visual.md`](docs/specs/08-identidade-visual.md):
 - Alvos de toque de no mínimo 48 px; botões principais com 52 px de altura.
 - Celular primeiro. Nada de visual genérico de template: sem degradês, sombras pesadas ou emojis como ícones.
 
+## Vários agentes ao mesmo tempo
+
+Este repositório é trabalhado por vários agentes em paralelo. Para que um não atrapalhe o outro:
+
+### Uma branch por assunto, um agente por branch
+
+- Cada agente desenvolve na **branch do assunto em que está trabalhando** (ex.: `feat/fechamento-de-caixa`), nunca na `main` e nunca na branch de outro agente.
+- Uma branch trata de **um único assunto**. Se aparecer algo de outro assunto no meio do trabalho (um bug em outro módulo, uma melhoria não relacionada), anote para o usuário ou abra outra branch; não misture no mesmo PR.
+- Assuntos diferentes = branches diferentes, mesmo que o mesmo agente trabalhe em ambos.
+
+### Cada agente no seu worktree
+
+- **O checkout principal (a raiz do repositório) fica sempre na `main`, limpo.** Ninguém edita arquivos nem troca de branch nele; ele só serve de base.
+- Cada tarefa roda num **git worktree próprio**, dentro de `.worktrees/` (ignorada pelo git), com a sua branch:
+  ```
+  git fetch origin && git worktree add .worktrees/<tipo>-<descricao> -b <tipo>/<descricao> origin/main
+  ```
+  Sem remoto configurado, use `main` no lugar de `origin/main`.
+- Trabalhe, rode comandos e faça commits **somente dentro do seu worktree**. Nunca edite arquivos de outro worktree nem da raiz.
+- Ao terminar (PR aberto e aceito, ou tarefa abandonada), remova o worktree: `git worktree remove .worktrees/<nome>`.
+
+### Antes de começar
+
+- Rode `git worktree list` para ver as branches em andamento. Não pegue uma tarefa ou módulo que já tenha branch aberta; se precisar mexer no mesmo módulo, combine com o usuário.
+- Prefira tarefas pequenas e de um módulo só. PRs pequenos reduzem conflito.
+
+### Comandos proibidos fora do seu worktree
+
+Estes comandos afetam o trabalho de outros agentes e só podem ser usados dentro do seu próprio worktree, e nunca na raiz:
+`git switch`/`git checkout` de branch, `git stash`, `git reset --hard`, `git clean`, `git rebase`, `git restore` em massa, `rm -rf` em pastas do projeto.
+
+Também é proibido: apagar ou mover worktrees de outros, apagar branches que não são suas, `git push --force` em branch que não é sua, e alterar a configuração global do git.
+
+### Pontos de conflito conhecidos
+
+- **`packages/shared`** (enums, schemas, eventos) e **o schema do banco** são compartilhados por todos os módulos. Mantenha mudanças pequenas e atualize sua branch com a `main` (`git rebase origin/main`, dentro do seu worktree) antes de abrir o PR.
+- **Migrations:** no máximo uma migration por PR. Se a `main` ganhou migrations depois que você criou a sua, refaça a sua em cima delas antes do PR.
+- **`pnpm-lock.yaml`:** em conflito, não edite à mão; resolva o `package.json` e rode `pnpm install` para regenerar.
+- **Specs:** se duas tarefas precisarem mudar a mesma spec, a segunda espera a primeira entrar na `main`.
+
+### Ambiente isolado por worktree
+
+Cada worktree roda o próprio ambiente de desenvolvimento sem disputar portas nem banco com os outros (detalhes na spec 01, seção 4.1):
+
+- portas próprias (API, web, admin) definidas no `.env.local` do worktree;
+- banco de dados próprio no Postgres de desenvolvimento compartilhado;
+- nome de projeto do Docker Compose próprio.
+
+Nunca rode migrations, seeds ou `docker compose down -v` apontando para o banco ou o projeto de outro worktree.
+
 ## Commits e branches
+
+### Fluxo de branches
+
+- **Nada vai direto para a `main`.** Nem commit, nem push, nem merge local. Toda mudança nasce numa branch de trabalho e entra na `main` por pull request.
+- Antes de começar qualquer mudança, crie a branch a partir da `main` atualizada: `git switch main && git pull && git switch -c <tipo>/<descricao-curta>`.
+- **Nome da branch:** `<tipo>/<descricao-curta>`, com o mesmo `tipo` do Conventional Commits e descrição em minúsculas com hífens. Ex.: `feat/reabrir-comanda`, `fix/troco-em-dinheiro`, `docs/spec-fiado`.
+- O PR vai da branch de trabalho para a `main`, com título no formato Conventional Commits e descrição com o que mudou, as regras e critérios de aceite cobertos (`RN-XX.YY`, `CA-XX.YY`) e como testar.
+- Se estiver na `main` com alterações por fazer commit, crie a branch antes de commitar (`git switch -c ...` leva as alterações junto).
+- Não faça push nem abra PR sem pedido explícito.
+
+### Mensagens de commit
 
 Todo commit segue o [Conventional Commits 1.0.0](https://www.conventionalcommits.org/pt-br/v1.0.0/):
 
@@ -87,4 +148,4 @@ Todo commit segue o [Conventional Commits 1.0.0](https://www.conventionalcommits
 - **Descrição:** em português, no imperativo, minúscula no início, sem ponto final, até cerca de 72 caracteres. Cite a regra quando houver: `feat(tabs): permite reabrir comanda em fechamento (RN-04.12)`.
 - **Mudança incompatível:** `!` depois do tipo/escopo e rodapé `BREAKING CHANGE: <explicação>`.
 - Um commit por mudança coerente; specs alteradas junto com o código que as afeta.
-- Não faça commit nem push sem pedido explícito.
+
