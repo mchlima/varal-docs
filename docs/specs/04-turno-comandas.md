@@ -129,7 +129,7 @@ Todas as rotas de escrita aceitam `Idempotency-Key` (spec 01). Mudanças de etap
 | `shift.opened`, `shift.closed` | `unit` | turno |
 | `shift.updated` | `unit` | turno com a tabela de preços nova (os balcões recarregam os preços) |
 | `tab.created` | `unit` | comanda com totais |
-| `tab.updated` | `unit` | comanda com situação, totais e `version` |
+| `tab.updated` | `unit` | comanda com situação, totais, contadores de itens prontos e atrasados e `version`; também sai quando uma mudança de etapa altera esses contadores |
 | `order.created` | `unit` e `station` de cada item | pedido com itens (cada estação recebe só os seus) |
 | `order_item.stage_changed` | `unit`, `station` de origem e de destino | item com etapa nova e `version` |
 | `order_item.canceled` | `unit` e `station` atual | item cancelado |

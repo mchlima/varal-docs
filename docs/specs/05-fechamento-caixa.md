@@ -29,7 +29,7 @@ Fechar a conta das comandas com desconto e uma ou mais formas de pagamento, e co
 ## 4. Pagamento
 
 - **RN-05.04** Formas: `pix`, `cash`, `credit_card`, `debit_card`.
-- **RN-05.05** Recebe pagamento qualquer colaborador com acesso ao balcão da unidade. Todo pagamento entra num caixa aberto do turno; com um único caixa aberto, a escolha é automática; com mais de um, o colaborador escolhe (o app lembra a última escolha do aparelho).
+- **RN-05.05** Recebe pagamento qualquer colaborador com acesso ao balcão da unidade. Todo pagamento entra num caixa aberto do turno; com um único caixa aberto, a escolha é automática; com mais de um, o colaborador escolhe (o app lembra a última escolha do aparelho). Com mais de um caixa aberto e nenhum escolhido, a API responde `CASH_REGISTER_REQUIRED` com a lista dos caixas. Pagamentos simultâneos na mesma comanda são processados em fila: a soma nunca passa do total.
 - **RN-05.06** Sem caixa aberto no turno, pagamentos são recusados com `NO_CASH_REGISTER_OPEN`.
 - **RN-05.07** Em comanda aberta, pagamentos só são aceitos em `closing`. Saldo = total − soma dos pagamentos não estornados.
 - **RN-05.08** Para `pix` e cartões, o valor não pode passar do saldo.
@@ -40,8 +40,8 @@ Fechar a conta das comandas com desconto e uma ou mais formas de pagamento, e co
 
 ### 4.1 Estorno
 
-- **RN-05.13** Um pagamento pode ser estornado, com motivo, enquanto o turno estiver aberto e o caixa do pagamento estiver aberto.
-- **RN-05.14** Estornar pagamento de comanda `paid` volta a comanda para `closing`. Na comanda paga antes, é assim que se cancela um item depois do pagamento: estorna, cancela o item e recebe de novo (ou cancela a comanda).
+- **RN-05.13** Um pagamento pode ser estornado, com motivo, enquanto o turno estiver aberto e o caixa do pagamento estiver aberto. Estorna quem tem acesso ao balcão (é ele quem conduz a RN-05.14).
+- **RN-05.14** Estornar pagamento de comanda `paid` volta a comanda para `closing`. Na comanda paga antes, é assim que se cancela um item depois do pagamento: estorna, cancela o item e recebe de novo (ou cancela a comanda). Cancelar item de comanda paga responde `TAB_PAID` com os pagamentos a estornar; cancelar comanda com pagamento ativo responde `TAB_HAS_PAYMENTS`. Desconto ou cancelamento que deixe o total abaixo do já pago é recusado.
 - **RN-05.15** O estorno não apaga o pagamento: marca `reversed_at`, quem e o motivo. O valor sai do esperado do caixa.
 
 ## 5. Caixa
@@ -50,7 +50,7 @@ Fechar a conta das comandas com desconto e uma ou mais formas de pagamento, e co
 - **RN-05.17** Um turno pode ter vários caixas abertos ao mesmo tempo. Cada caixa tem nome (padrão "Caixa 1", "Caixa 2"…), responsável (quem abriu) e fundo de troco em dinheiro (maior ou igual a zero).
 - **RN-05.18** Sangria (`withdrawal`) e suprimento (`deposit`): valor maior que zero e motivo obrigatório. A sangria não pode passar do dinheiro esperado na gaveta.
 - **RN-05.19** Dinheiro esperado = fundo de troco + pagamentos em dinheiro (valor aplicado, não estornados) + suprimentos − sangrias.
-- **RN-05.20** Fechar caixa: o responsável pelo fechamento informa, por forma de pagamento, o valor conferido (dinheiro contado na gaveta; Pix conferido no extrato; crédito e débito pela maquininha). O sistema calcula a diferença de cada forma (informado − esperado). Havendo qualquer diferença diferente de zero, uma observação é obrigatória.
+- **RN-05.20** Fechar caixa: o responsável pelo fechamento informa, por forma de pagamento, o valor conferido (dinheiro contado na gaveta; Pix conferido no extrato; crédito e débito pela maquininha). O sistema calcula a diferença de cada forma (informado − esperado). Havendo qualquer diferença diferente de zero, uma observação é obrigatória. O fechamento exige o valor conferido das quatro formas; havendo diferença em qualquer uma, a observação é obrigatória (`CLOSING_NOTE_REQUIRED`, com a prévia das diferenças). O nome do caixa é único no turno.
 - **RN-05.21** Caixa fechado não recebe pagamentos nem movimentos e não pode ser reaberto no MVP.
 - **RN-05.22** Quitações de fiado entram no caixa em que foram recebidas (spec 06) e aparecem separadas na conferência.
 
@@ -81,9 +81,9 @@ Observação: `payments.shift_id` é o turno em que o dinheiro entrou, que pode 
 | --- | --- |
 | `PUT /api/v1/tabs/{id}/discount` | Aplica ou substitui desconto (`type`, `value`, `reason`) |
 | `DELETE /api/v1/tabs/{id}/discount` | Remove desconto (com `reason`) |
-| `POST /api/v1/tabs/{id}/payments` | Registra pagamento (`method`, `amount` ou `tendered`, `cashRegisterId`) |
+| `POST /api/v1/tabs/{id}/payments` | Registra pagamento (`method`, `amountCents` ou `tenderedCents`, `cashRegisterId` opcional) |
 | `POST /api/v1/payments/{id}/reverse` | Estorna (`reason`) |
-| `POST /api/v1/shifts/{id}/cash-registers` | Abre caixa (`name`, `openingFloat`) |
+| `POST /api/v1/shifts/{id}/cash-registers` | Abre caixa (`name` opcional, `openingFloatCents`) |
 | `GET /api/v1/shifts/{id}/cash-registers` | Caixas do turno com esperado por forma |
 | `POST /api/v1/cash-registers/{id}/movements` | Sangria ou suprimento |
 | `GET /api/v1/cash-registers/{id}` | Detalhe: movimentos, pagamentos, esperado |
