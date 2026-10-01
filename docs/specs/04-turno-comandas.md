@@ -69,7 +69,7 @@ Operar uma barraca durante um período de trabalho: abrir o turno, registrar com
 - **RN-04.21** No balcão (`counter`), o colaborador também pode avançar itens que estejam na última etapa antes da final (no template: Pronto → Entregue), para registrar a entrega direto na comanda.
 - **RN-04.22** Voltar um item para a etapa anterior é permitido para quem pode avançá-lo, com registro na auditoria. Não se volta da etapa final.
 - **RN-04.23** O item guarda quando entrou na etapa atual. Ele é considerado atrasado quando passou mais de `late_after_minutes` (configuração da unidade) desde o envio do pedido sem chegar à etapa final.
-- **RN-04.24** O item avança com toda a sua quantidade. Para separar (ex.: 2 de 3 espetos prontos), não há divisão no MVP; a cozinha avança quando todos estiverem prontos.
+- **RN-04.24** Avançar parte da quantidade: num item com quantidade maior que 1, quem avança pode escolher quantas unidades seguem (ex.: 2 de 3 espetos prontos); o padrão é todas. Avançar parte divide o item em duas linhas, como no cancelamento parcial (RN-04.26): uma linha nova, com a quantidade avançada, vai para a próxima etapa e aponta para a original em `split_from_id`; a original fica na etapa atual com o restante e mantém `stage_entered_at`. As duas linhas guardam a mesma cópia do vendido, e o total da comanda não muda. Voltar etapa (RN-04.22) vale para cada linha separadamente.
 
 ### 5.2 Cancelamento de item
 
@@ -116,7 +116,7 @@ O "valor de um item" é `(unit_price_cents + soma de price_delta_cents) × quant
 | `POST /api/v1/tabs/{id}/reopen` | `closing` → `open` |
 | `POST /api/v1/tabs/{id}/cancel` | Cancela comanda (RN-04.12) |
 | `GET /api/v1/stations/{id}/queue` | Itens na fila da estação, mais antigos primeiro |
-| `POST /api/v1/order-items/{id}/advance` | Próxima etapa |
+| `POST /api/v1/order-items/{id}/advance` | Próxima etapa; `quantity` opcional para avançar parte (RN-04.24), devolvendo as duas linhas |
 | `POST /api/v1/order-items/{id}/back` | Etapa anterior |
 | `POST /api/v1/order-items/{id}/cancel` | Cancela (`quantity`, `reason`) |
 
@@ -173,8 +173,8 @@ Todas as rotas de escrita aceitam `Idempotency-Key` (spec 01). Mudanças de etap
 - **CA-04.10** Em comanda paga antes, nenhum item chega à cozinha antes de o pagamento ser registrado.
 - **CA-04.11** Um item fica marcado como atrasado depois de `late_after_minutes` sem chegar à etapa final.
 - **CA-04.12** A tela da estação continua recebendo pedidos depois de o aparelho perder e recuperar a conexão, sem itens duplicados ou faltando.
+- **CA-04.13** Avançar 2 de um item com quantidade 3 deixa 1 na etapa atual e 2 na próxima, em duas linhas ligadas por `split_from_id`, sem mudar o total da comanda.
 
 ## 10. Questões abertas
 
-- Divisão de quantidade ao avançar etapa (ex.: 2 de 3 prontos) ficou fora do MVP; confirmar com o piloto se faz falta.
-- Tempo padrão de atraso: 15 minutos é uma sugestão; validar com o piloto.
+Nenhuma no momento.

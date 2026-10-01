@@ -26,7 +26,7 @@ Permitir que o dono deixe cada barraca pronta para operar: unidades, estações,
 - **RN-03.01** A organização tem pelo menos uma unidade. O dono cria, renomeia, ativa e desativa unidades.
 - **RN-03.02** Uma unidade com turno aberto não pode ser desativada.
 - **RN-03.03** Uma unidade nova nasce com o template padrão de estações e fluxo (seção 4.4) e com o cardápio vazio.
-- Configuração por unidade: `late_after_minutes` (padrão 15), tempo a partir do qual um item na estação aparece como atrasado.
+- Configuração por unidade: `late_after_minutes` (padrão 15, de 1 a 240, alterável pelo dono), tempo a partir do qual um item na estação aparece como atrasado. O padrão de 15 minutos foi confirmado com o piloto.
 
 ## 4. Estações e fluxo
 
@@ -181,5 +181,4 @@ No balcão e nas estações, o colaborador pode marcar produto como esgotado por
 
 ## 11. Questões abertas
 
-- O modelo de fluxo com destino por etapa (`product_station`, `fixed_station`, `none`) é um detalhamento desta spec sobre o documento de escopo **(proposta)**; confirmar que atende os casos esperados.
 - Limite de unidades, produtos e colaboradores por organização no MVP (sugestão: sem limite no piloto).

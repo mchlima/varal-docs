@@ -33,7 +33,7 @@ Cada parte do sistema tem o próprio repositório no GitHub (`mchlima/...`):
 | `varal-web-api` | API REST (`/api/v1`) e WebSocket (`/ws`), banco e migrations | NestJS, PostgreSQL |
 | `varal-panel-web` | App dos clientes: balcão, estações, caixa e painel do dono (PWA) | Nuxt |
 | `varal-admin-web` | Admin da plataforma | Nuxt |
-| `varal-infra` | Docker Compose de produção, configuração do Varal no NGINX existente, backup e Postgres de desenvolvimento | Docker, NGINX |
+| `varal-infra` | Docker Compose de produção, configuração do Varal no NGINX compartilhado e Postgres de desenvolvimento | Docker, NGINX |
 
 Na máquina de desenvolvimento, os repositórios ficam lado a lado numa pasta comum, para que agentes e scripts enxerguem os vizinhos por caminho relativo:
 
@@ -47,8 +47,8 @@ varal/                 (pasta comum, não é repositório)
 ```
 
 - Node 22 LTS e TypeScript em modo `strict` nos três projetos de código. Gerenciador de pacotes: pnpm.
-- Validação: **zod (proposta)** na API e nos formulários dos apps.
-- ORM: **Prisma (proposta)**, com migrations versionadas no `varal-web-api`.
+- Validação: **zod** na API e nos formulários dos apps.
+- ORM: **Prisma**, com migrations versionadas no `varal-web-api`.
 
 ### 3.1 Contratos entre API e apps
 
@@ -56,7 +56,7 @@ Não há pacote compartilhado. A API é a fonte única dos contratos e os public
 
 - **RN-01.09** O `varal-web-api` gera o documento OpenAPI 3.1 a partir do código e o mantém commitado em `openapi.json`, na raiz do repositório. Todo PR que muda rota, schema, enum ou evento atualiza esse arquivo; a CI falha se o arquivo estiver desatualizado.
 - **RN-01.10** Enums de estado (`TabStatus`, `OrderStatus`…) e os payloads dos eventos em tempo real entram no OpenAPI como schemas em `components.schemas` (eventos com o prefixo `Event`, ex.: `EventOrderCreated`), mesmo os que não aparecem em nenhuma rota.
-- **RN-01.11** `varal-panel-web` e `varal-admin-web` geram os tipos e o cliente HTTP a partir desse arquivo com **openapi-typescript e openapi-fetch (proposta)**, por um script `pnpm gen:api` que lê `../varal-web-api/openapi.json` (ou a URL do arquivo no GitHub, na CI). Os tipos gerados ficam commitados no app e nunca são editados à mão.
+- **RN-01.11** `varal-panel-web` e `varal-admin-web` geram os tipos e o cliente HTTP a partir desse arquivo com **openapi-typescript e openapi-fetch**, por um script `pnpm gen:api` que lê `../varal-web-api/openapi.json` (ou a URL do arquivo no GitHub, na CI). Os tipos gerados ficam commitados no app e nunca são editados à mão.
 - **RN-01.12** Mudanças na API são compatíveis com versões anteriores sempre que possível (só adicionar campos, rotas e valores). Uma mudança incompatível exige PRs coordenados nos repositórios afetados e o rodapé `BREAKING CHANGE` no commit da API.
 - Os tokens visuais (spec 08) são mantidos nos dois apps, com a spec 08 como fonte; mudança de token é feita nos dois.
 
@@ -69,7 +69,7 @@ Definida no `varal-infra`. O VPS de produção (SV-GENERAL-00, Locaweb: Ubuntu 2
 
 Regras:
 
-- **RN-01.14** Tudo no VPS roda em Docker. Nada do Varal é instalado direto no sistema do VPS (nem Node, nem NGINX, nem PostgreSQL, nem cron do host); tarefas agendadas, como o backup, rodam em container.
+- **RN-01.14** Tudo no VPS roda em Docker. Nada do Varal é instalado direto no sistema do VPS (nem Node, nem NGINX, nem PostgreSQL, nem cron do host); tarefas agendadas rodam em container.
 - **RN-01.15** O Varal não sobe PostgreSQL nem proxy reverso próprios: usa os compartilhados do VPS. No proxy, entra com arquivos de configuração próprios (um `server` por host), sem alterar a configuração dos outros projetos; o `varal-infra` guarda esses arquivos e descreve como instalá-los e recarregar o proxy.
 - **RN-01.16** No PostgreSQL compartilhado, o Varal tem um banco `varal` e um usuário `varal` dono só desse banco, sem privilégio de superusuário. A API nunca conecta com o usuário `postgres`. Como as conexões são divididas entre projetos, o pool da API usa no máximo 10 conexões **(proposta)**.
 - **RN-01.17** A API entra na rede Docker externa `postgres` e na rede do proxy; não publica porta no host.
@@ -86,7 +86,6 @@ Regras:
 | `panel` | build estático do `varal-panel-web`, servido pelo proxy | Via proxy |
 | `admin` | build estático do `varal-admin-web`, servido pelo proxy | Via proxy |
 | `postgres` | container compartilhado `postgres` (`postgres:17`); banco e usuário `varal` | Rede `postgres` |
-| `backup` | container agendado no Compose do Varal | Nenhuma |
 
 Domínios, sob kratinho.com.br enquanto não houver domínio próprio (no ar desde 2026-10-01):
 
@@ -101,7 +100,7 @@ Domínios, sob kratinho.com.br enquanto não houver domínio próprio (no ar des
 - Os três hosts são do mesmo site (`kratinho.com.br`), então os cookies `SameSite=Strict` da sessão continuam sendo enviados nas chamadas dos fronts à API. Os cookies são emitidos pela API sem atributo `Domain` (só valem no host da API); como os dois fronts usam o mesmo host de API, painel e admin se distinguem pelo nome do cookie (seção 7.2).
 - Os apps são SPAs (Nuxt com `ssr: false`); o `varal-panel-web` é instalável como PWA.
 - Cada repositório de código publica a própria imagem ou build; o `varal-infra` só referencia versões (tags), sem copiar código.
-- Backup: `pg_dump` do banco `varal` diário às 04:00 (horário de Brasília), rodando em container, comprimido, enviado para armazenamento fora do VPS, com retenção de 30 dias. O destino é questão aberta.
+- **Backup fora do MVP** (decisão de 2026-10-01): por enquanto não há backup automático do banco. Quando entrar, a sugestão é `pg_dump` diário do banco `varal` em container, comprimido, enviado para fora do VPS, com retenção de 30 dias.
 - Variáveis sensíveis (SMTP, segredos de token, banco) só em variáveis de ambiente, nunca em repositório. Cada repositório tem um `.env.example` com as suas.
 
 ### 4.1 Desenvolvimento com vários agentes em paralelo
@@ -156,7 +155,7 @@ Cada repositório é trabalhado por vários agentes ao mesmo tempo, cada um num 
 
 ### 7.2 Sessão
 
-- **(proposta)** Token de acesso JWT com validade de 15 min e token de renovação opaco com validade de 30 dias, rotativo, guardado como hash no banco. Ambos em cookies `httpOnly`, `Secure`, `SameSite=Strict`.
+- Token de acesso JWT com validade de 15 min e token de renovação opaco com validade de 30 dias, rotativo, guardado como hash no banco. Ambos em cookies `httpOnly`, `Secure`, `SameSite=Strict`.
 - Cookies do admin usam nome e segredo de assinatura diferentes dos do app dos clientes; um token de um contexto nunca é aceito no outro.
 - Cada aparelho recebe um `device_id` (UUID guardado no aparelho) enviado em todas as requisições, usado na auditoria e na lista de sessões.
 - Logout encerra a sessão do aparelho. Troca ou redefinição de senha encerra todas as sessões daquele usuário.
@@ -200,7 +199,7 @@ Toda ação que cria, altera, cancela ou remove dado relevante grava uma linha e
   - **SPF** do domínio principal: continua só com o Cloudflare Email Routing (`include:_spf.mx.cloudflare.net`). Não acrescente a Locaweb nele.
   - **DKIM** da Locaweb em `smtp._domainkey.bounce.kratinho.com.br`; o DMARC de `bounce` é um CNAME para `_dmarc.smtpdlv.com.br`, mantido pela Locaweb.
   - **DMARC** do domínio em `_dmarc.kratinho.com.br`, gerenciado pelo DMARC Management do Cloudflare (relatórios no painel do Cloudflare). Começa em `p=none`; passa a `quarantine` depois de algumas semanas sem falhas nos relatórios.
-- Envio assíncrono por fila no próprio PostgreSQL (**pg-boss, proposta**), para que lentidão do SMTP não trave a requisição. Até 3 tentativas com espera crescente.
+- Envio assíncrono por fila no próprio PostgreSQL (**pg-boss**), para que lentidão do SMTP não trave a requisição. Até 3 tentativas com espera crescente.
 - Cada envio grava `email_logs` (destinatário, tipo, situação, erro, datas).
 - **RN-01.04** Limite do plano: 10.000 envios por mês. Ao atingir 80% (8.000), o admin da plataforma vê um alerta no painel. Ao atingir 100%, envios não críticos param; convites e redefinições continuam e o alerta muda para crítico.
 - Nenhum e-mail é disparado por evento operacional (pedido, pagamento, turno).
@@ -375,7 +374,6 @@ Rotas em português, sem acentos, com hífen entre palavras. Parâmetros identif
 - **CA-01.07** Com o aparelho sem conexão, uma mudança de etapa feita na estação fica na fila local e é aplicada uma única vez quando a conexão volta.
 - **CA-01.08** Cada ação listada na seção 8 gera exatamente uma linha de auditoria com ator, aparelho e alterações.
 - **CA-01.09** Ao passar de 8.000 envios no mês, o painel do admin mostra o alerta de e-mail.
-- **CA-01.10** O backup diário gera um arquivo restaurável (teste de restauração documentado em `varal-infra`).
 - **CA-01.11** A CI do `varal-web-api` falha quando o `openapi.json` commitado difere do gerado pelo código.
 - **CA-01.12** Os apps compilam com os tipos gerados do `openapi.json` atual; um campo removido da API quebra a compilação do app que o usa.
 - **CA-01.13** Em produção, nenhum processo do Varal roda fora de Docker; o Compose do Varal não define serviços `nginx` nem `postgres`; a API conecta com o usuário `varal`.
@@ -385,6 +383,5 @@ Rotas em português, sem acentos, com hífen entre palavras. Parâmetros identif
 ## 16. Questões abertas
 
 - E-mail: quando endurecer o DMARC de `p=none` para `quarantine` (depende dos relatórios do Cloudflare).
-- Destino do backup fora do VPS (ex.: bucket S3 compatível, outro servidor).
+- Backup: quando entrar e para onde enviar (ex.: Cloudflare R2, bucket S3 compatível, outro servidor).
 - Restringir as portas 80/443 do VPS às faixas de IP do Cloudflare. Hoje elas aceitam qualquer origem, e a regra afetaria também os outros projetos do VPS.
-- Confirmar as propostas técnicas: Prisma, zod, pg-boss, JWT com renovação em cookie.

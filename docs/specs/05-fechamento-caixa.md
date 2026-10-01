@@ -117,4 +117,3 @@ O botão de confirmar pagamento mostra o valor e a forma ("Confirmar R$ 46,00 no
 ## 10. Questões abertas
 
 - Reabrir caixa fechado por engano ficou fora do MVP; confirmar.
-- Separar crédito e débito na conferência é uma proposta desta spec; confirmar se o piloto usa os dois.
