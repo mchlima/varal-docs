@@ -91,7 +91,24 @@ Cantos arredondados variam por função (6, 10, 12 px), não um único raio para
 
 ## 9. Logo
 
-Pendente. Conceito sugerido: o varal de comandas (fio, pregador, papel pendurado). O logo precisa funcionar em uma cor (Framboesa ou preto) e em tamanho de ícone de app (48 px).
+Versão provisória (2026-10-01), até haver um logo definitivo. Os arquivos ficam em [`docs/brand/`](../brand/).
+
+- **Símbolo:** uma comanda (papel com a borda de baixo picotada) presa por um pregador num fio levemente curvo. É o varal de comandas que dá nome ao produto.
+- **Nome:** "varal" em minúsculas, desenhado em traço contínuo com pontas redondas, da mesma espessura do fio. Não depende de fonte instalada.
+- **Cores:** comanda em Framboesa `#BE185D`, fio, pregador e nome em Framboesa profundo `#831843`. A versão de uma cor (`logo-mono.svg`) usa `currentColor`, para ficar preta, branca ou na cor do texto.
+- **Ícone e favicon:** quadrado de cantos arredondados em Framboesa com o símbolo em branco; legível em 16 px.
+
+| Arquivo | Uso |
+| --- | --- |
+| `logo.svg` | Logo horizontal colorido (login, cabeçalhos, e-mails) |
+| `logo-mono.svg` | Logo em uma cor (`currentColor`) |
+| `logo-symbol.svg` | Só o símbolo, colorido, fundo transparente |
+| `favicon.svg` | Favicon dos dois apps |
+| `apple-touch-icon.png` | Ícone do iOS (180 px, sangrado) |
+| `icon-192.png`, `icon-512.png` | Ícones do manifesto do PWA (`purpose: any`) |
+| `icon-maskable.svg`, `icon-maskable-512.png` | Ícone do manifesto com `purpose: maskable` (símbolo dentro da zona segura de 80%) |
+
+- **RN-08.01** Os apps `varal-panel-web` e `varal-admin-web` copiam os arquivos de `docs/brand/` para o próprio `public/`; não redesenham o logo. Mudança no logo é feita aqui e copiada para os dois.
 
 ## 10. Critérios de aceite
 
@@ -104,4 +121,4 @@ Pendente. Conceito sugerido: o varal de comandas (fio, pregador, papel pendurado
 
 - Tipografia: validar Atkinson Hyperlegible e Bricolage Grotesque.
 - Modo escuro para feiras à noite: fora do MVP **(proposta)**; os tokens já permitem adicionar depois.
-- Logo.
+- Logo definitivo: o atual é provisório.
