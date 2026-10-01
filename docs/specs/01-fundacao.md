@@ -65,7 +65,7 @@ Não há pacote compartilhado. A API é a fonte única dos contratos e os public
 Definida no `varal-infra`. O VPS de produção (SV-GENERAL-00, Locaweb: Ubuntu 24.04, 2 vCPUs, 4 GB de RAM, 70 GB de SSD) é compartilhado com outros projetos do usuário. Estado verificado em 2026-10-01:
 
 - **PostgreSQL** já roda em Docker: container `postgres`, imagem `postgres:17`, Compose próprio em `/opt/postgres` (fora dos repositórios do Varal), volume externo `postgres_data` e rede Docker externa `postgres`. Os containers que entram nessa rede falam com ele em `postgres:5432`. A porta 5432 é publicada no host de propósito, para clientes externos. Configurado para a máquina compartilhada: `max_connections=50` e limite de 1,3 GB de memória.
-- **NGINX** está instalado **direto no host** (pacote do Ubuntu, 1.24, via systemd), sem nenhum site habilitado e sem escutar nas portas 80/443. Não há certbot nem certificados. Isso contraria a RN-01.14; ver a questão aberta na seção 16.
+- **NGINX** roda em Docker desde 2026-10-01: container `nginx` (`nginx:1.30-alpine`), Compose próprio em `/opt/nginx` (fora dos repositórios do Varal), rede Docker externa `proxy` e portas 80/443. Cada projeto entra com os próprios arquivos em `/opt/nginx/conf.d/<projeto>-<host>.conf` e os próprios builds estáticos em `/opt/nginx/html/<projeto>/`, servidos em `/srv/html/<projeto>`. O `server` padrão responde só `/healthz` e desafios ACME e fecha as demais conexões. O mesmo Compose tem um container `certbot` (Let's Encrypt) para projetos que não usam o Cloudflare. O NGINX que vinha instalado no host foi parado e desabilitado. O `/opt/nginx/README.md` descreve o uso.
 
 Regras:
 
@@ -73,11 +73,15 @@ Regras:
 - **RN-01.15** O Varal não sobe PostgreSQL nem proxy reverso próprios: usa os compartilhados do VPS. No proxy, entra com arquivos de configuração próprios (um `server` por host), sem alterar a configuração dos outros projetos; o `varal-infra` guarda esses arquivos e descreve como instalá-los e recarregar o proxy.
 - **RN-01.16** No PostgreSQL compartilhado, o Varal tem um banco `varal` e um usuário `varal` dono só desse banco, sem privilégio de superusuário. A API nunca conecta com o usuário `postgres`. Como as conexões são divididas entre projetos, o pool da API usa no máximo 10 conexões **(proposta)**.
 - **RN-01.17** A API entra na rede Docker externa `postgres` e na rede do proxy; não publica porta no host.
-- **Proxy compartilhado (proposta):** NGINX em container, no mesmo padrão do PostgreSQL (Compose próprio em `/opt/nginx`, rede Docker externa `proxy`, portas 80/443, certificados Let's Encrypt renovados por um container certbot), substituindo o NGINX do host, que hoje não serve nada. Como serve outros projetos, ele não é definido no `varal-infra`.
+- **RN-01.18** O DNS do domínio fica no **Cloudflare**, que também fornece o certificado HTTPS público. Os hosts do Varal ficam com proxy ligado (nuvem laranja) e modo SSL **Full (strict)**. Entre o Cloudflare e o VPS, o NGINX usa um **Cloudflare Origin Certificate** guardado em `/opt/nginx/certs/<host>/`, fora de qualquer repositório; o Varal não usa o certbot.
+- **RN-01.19** Atrás do Cloudflare, o IP do cliente vem no cabeçalho `CF-Connecting-IP`. O NGINX restaura o IP real (`real_ip_header CF-Connecting-IP` e `set_real_ip_from` com as faixas de IP publicadas pelo Cloudflare) e repassa à API em `X-Forwarded-For`. A API confia nesse cabeçalho só vindo do proxy, e é esse o IP gravado em sessões e auditoria.
+- O Cloudflare encaminha WebSocket. Conexões ociosas por mais de 100 segundos são encerradas, o que não afeta o Socket.IO, que envia ping a cada 25 segundos.
+- Registros que não são HTTP, como os de e-mail (SPF, DKIM e DMARC do SMTP da Locaweb), também ficam na zona do Cloudflare, sem proxy (nuvem cinza).
 
 | Serviço | Origem | Exposição |
 | --- | --- | --- |
-| proxy (`nginx`) | compartilhado no VPS (ver proposta acima) | Portas 80/443, termina HTTPS |
+| Cloudflare | DNS e proxy na borda | HTTPS público |
+| proxy (`nginx`) | container compartilhado `nginx` em `/opt/nginx` | Portas 80/443; HTTPS com o Origin Certificate |
 | `api` | imagem do `varal-web-api`, no Compose do Varal | Redes `postgres` e `proxy`, porta 3000 interna |
 | `panel` | build estático do `varal-panel-web`, servido pelo proxy | Via proxy |
 | `admin` | build estático do `varal-admin-web`, servido pelo proxy | Via proxy |
@@ -366,9 +370,10 @@ Rotas em português, sem acentos, com hífen entre palavras. Parâmetros identif
 - **CA-01.11** A CI do `varal-web-api` falha quando o `openapi.json` commitado difere do gerado pelo código.
 - **CA-01.12** Os apps compilam com os tipos gerados do `openapi.json` atual; um campo removido da API quebra a compilação do app que o usa.
 - **CA-01.13** Em produção, nenhum processo do Varal roda fora de Docker; o Compose do Varal não define serviços `nginx` nem `postgres`; a API conecta com o usuário `varal`.
+- **CA-01.14** Os hosts do Varal respondem por HTTPS pelo Cloudflare com SSL Full (strict) sem erro de certificado, e uma ação feita pelo app grava na auditoria o IP real do aparelho, não um IP do Cloudflare.
 
 ## 16. Questões abertas
 
 - Destino do backup fora do VPS (ex.: bucket S3 compatível, outro servidor).
-- NGINX do VPS: hoje está no host, contrariando a RN-01.14. Confirmar a proposta de trocá-lo por um NGINX compartilhado em container (`/opt/nginx`, rede `proxy`, certbot em container). A troca é uma ação no VPS e só acontece com pedido do usuário.
+- Restringir as portas 80/443 do VPS às faixas de IP do Cloudflare. Hoje elas aceitam qualquer origem, e a regra afetaria também os outros projetos do VPS.
 - Confirmar as propostas técnicas: Prisma, zod, pg-boss, JWT com renovação em cookie, subdomínios.
