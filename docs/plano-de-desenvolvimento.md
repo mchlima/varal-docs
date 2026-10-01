@@ -106,11 +106,12 @@ Escolhido em 2026-10-01 no lugar do Node 22, para aproveitar as novidades. Lanç
 - **GitHub Actions** (plano free: 2.000 minutos por mês). Em cada repositório de código: lint, tipos, testes e build em todo PR e na `main`; cancelamento de execuções antigas da mesma branch; cache do pnpm; documentação não dispara a CI. Artefatos guardados por 1 a 3 dias.
 - **Título do PR** checado por action (Conventional Commits). No plano free o check não bloqueia o merge; serve de aviso.
 - **Versões:** release-please em cada repositório de código. Ele mantém um PR de release com versão e changelog; o merge desse PR cria a tag, e a tag dispara o deploy. Assim todo deploy passa por um merge explícito.
-- **Imagem da API** no GitHub Container Registry, construída em várias etapas sobre `node:26-alpine` (o Prisma 7 não depende mais do motor em Rust). Tags `sha-<curto>` e `vX.Y.Z`; produção sempre fixa a versão.
-- **Deploy (a decidir antes da fase 2).** Proposta: GitHub Actions via SSH, com um usuário `deploy` no VPS cuja chave só pode rodar o script de deploy do `varal-infra`. O script é o mesmo se o deploy for disparado à mão:
-  - **API:** `deploy.sh api vX.Y.Z` baixa a imagem, roda `prisma migrate deploy` num container temporário e só então troca o container `varal-api`. Migrations seguem o padrão expandir e depois contrair, para a versão anterior continuar funcionando durante a troca.
-  - **Apps:** o build vai por rsync para `/opt/nginx/html/<app>/releases/<versão>`, e um link `current` troca de versão de uma vez. Voltar versão é trocar o link.
-  - **Segredos:** os de deploy ficam nos secrets do GitHub; os da aplicação ficam num `.env` no VPS (permissão 600), fora do git.
+- **Imagem da API:** construída pela CI em várias etapas sobre `node:26-alpine` (o Prisma 7 não depende mais do motor em Rust), com a tag da versão (`vX.Y.Z`). Não passa por registro de imagens: a CI envia a imagem direto ao VPS (`docker save | gzip | ssh`), o que dispensa guardar no VPS um token de leitura do GitHub. O VPS guarda as 3 versões mais recentes.
+- **Deploy pelo GitHub Actions** (decidido em 2026-10-01). O merge do PR de release do release-please cria a tag, e o mesmo workflow publica a versão (o GitHub não dispara outros workflows a partir de tags criadas pelo próprio Actions). Também dá para disparar à mão (Actions → deploy) para repetir ou voltar uma versão. Detalhes em `varal-infra/prod/README.md`.
+  - **Usuário `deploy` no VPS:** a chave dele só roda o `deploy-gate` (forced command com `restrict`: sem shell, sem túnel), que aceita `api`, `app` e `status`.
+  - **API:** `deploy-api` carrega a imagem, roda `prisma migrate deploy` num container temporário e só então troca o container `varal-api`; se a versão nova não ficar saudável em 90 s, volta para a anterior. Migrations seguem o padrão expandir e depois contrair, para a versão anterior continuar funcionando durante a troca.
+  - **Apps:** `deploy-app` extrai o build em `/opt/nginx/html/varal-<app>/releases/<versão>` e troca o link `current` de uma vez. Voltar versão é trocar o link.
+  - **Segredos:** os de deploy (`DEPLOY_SSH_KEY`, `DEPLOY_HOST`, `DEPLOY_KNOWN_HOSTS`) ficam nos secrets do GitHub de cada repositório de código; os da aplicação ficam em `/opt/varal/.env` no VPS (permissão 640, grupo `deploy`) e nas credenciais locais, fora do git.
 - **Dependências:** Dependabot, ligado no fim da fase 0, com atualizações agrupadas num PR semanal por repositório (npm, Docker e GitHub Actions).
 
 ## 3. Fases
@@ -148,8 +149,7 @@ Critérios: CA-01.01 a 01.06, 01.08, 01.09 e 01.11.
 - **Infraestrutura:**
   - Compose de produção com `varal-api`;
   - banco e usuário `varal` (RN-01.16);
-  - script de deploy e workflow de imagem;
-  - forma de disparar o deploy (seção 6).
+  - scripts de deploy, usuário `deploy` e workflows de deploy (seção 2.4).
 - **Primeiro deploy** com a página provisória substituída pelos apps reais. Fazer isso cedo tira o risco do fim do projeto.
 
 Critérios: CA-01.07, 01.12, 01.13, 01.14 e 01.15.
@@ -238,6 +238,7 @@ Decididos em 2026-10-01:
 - **Row-Level Security** no Postgres como segunda camada do multi-tenant: depois do piloto.
 - **Atualização de dependências:** Dependabot, agrupado e semanal, a partir do fim da fase 0.
 
-Pendente:
+- **Deploy:** pelo GitHub Actions, com usuário `deploy` restrito (seção 2.4).
+- **Versões:** começam em 0.1.0; a primeira versão no ar sai no fim da fase 2.
 
-1. **Deploy:** pelo GitHub Actions com usuário `deploy` restrito ou por script rodado à mão. Decidir antes da fase 2.
+Nenhum ponto pendente no momento.
