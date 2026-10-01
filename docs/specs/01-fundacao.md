@@ -352,7 +352,7 @@ Rotas em português, sem acentos, com hífen entre palavras. Parâmetros identif
 | `/painel/cardapio` | Cardápio | 03 |
 | `/painel/colaboradores` | Colaboradores e permissões | 03 |
 | `/painel/acesso-da-equipe` | Código, link e QR | 03 |
-| `/painel/turnos` | Abrir turno e turno atual | 04 |
+| `/painel/turnos` | Abrir turno e turno atual (dono e colaboradores com `can_operate_cash`, RN-04.02; o resto do `/painel` é só do dono) | 04 |
 | `/painel/fiado` | Clientes e valores a receber | 06 |
 | `/painel/relatorios` | Histórico | 07 |
 | `/painel/relatorios/turnos/{id}` | Relatório do turno | 07 |
