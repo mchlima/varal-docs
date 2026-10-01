@@ -105,7 +105,7 @@ Domínios, sob kratinho.com.br enquanto não houver domínio próprio (no ar des
 
 ### 4.1 Desenvolvimento com vários agentes em paralelo
 
-Cada repositório é trabalhado por vários agentes ao mesmo tempo, cada um num git worktree em `.worktrees/` do próprio repositório (regras no `AGENTS.md`). O ambiente de desenvolvimento precisa permitir vários worktrees rodando juntos na mesma máquina.
+Cada repositório é trabalhado por vários agentes ao mesmo tempo, cada um num git worktree próprio, criado fora do repositório, em `varal/.worktrees/<repositório>/<nome>` (regras no `AGENTS.md`). Worktree dentro do repositório quebra o build dos apps, porque Nuxt, Vite e TypeScript sobem pelas pastas e encontram a configuração do checkout principal. O ambiente de desenvolvimento precisa permitir vários worktrees rodando juntos na mesma máquina.
 
 - **RN-01.06** Um Postgres de desenvolvimento compartilhado, definido no `varal-infra` (`dev/compose.yml`, projeto Compose fixo `varal-dev-db`, imagem `postgres:17`, a mesma versão da produção, porta 5432), atende todos os worktrees da API. Cada worktree do `varal-web-api` usa **um banco próprio** nesse servidor, chamado `varal_<slug-da-branch>`, e um banco de teste `varal_<slug>_test`, recriado a cada execução dos testes.
 - **RN-01.07** Cada worktree tem um `.env.local` (fora do git) com `WORKTREE_SLUG`, `PORT_OFFSET` e as variáveis do seu projeto: na API, a porta e o `DATABASE_URL`; nos apps, a porta e `NUXT_PUBLIC_API_BASE_URL`.
