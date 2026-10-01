@@ -2,7 +2,7 @@
 
 ## 1. Objetivo
 
-Definir as regras visuais do app `web` e do `admin` para que as telas sejam fáceis de ver ao sol, simples, modernas, sem cara de gerada por IA, e com ações claras e fáceis de operar com uma mão.
+Definir as regras visuais do `varal-panel-web` e do `varal-admin-web` para que as telas sejam fáceis de ver ao sol, simples, modernas, sem cara de gerada por IA, e com ações claras e fáceis de operar com uma mão.
 
 Referência visual das opções avaliadas: [Cores do Varal](https://claude.ai/artifact/Mg6NLUCqsFW3r9c4ZhTin6).
 
@@ -17,7 +17,7 @@ Referência visual das opções avaliadas: [Cores do Varal](https://claude.ai/ar
 
 ## 3. Cores
 
-Tokens em `packages/shared` (ou num pacote de UI compartilhado entre `web` e `admin`), expostos como variáveis CSS.
+Tokens mantidos nos dois apps como variáveis CSS, com esta tabela como fonte. Uma mudança de token é feita na spec e nos dois apps.
 
 | Token | Valor | Uso |
 | --- | --- | --- |

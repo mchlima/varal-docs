@@ -8,7 +8,7 @@ Fonte das decisões: documento [Varal — Escopo do MVP](https://claude.ai/code/
 
 | # | Spec | Conteúdo |
 | --- | --- | --- |
-| 01 | [Fundação](01-fundacao.md) | Monorepo, infraestrutura, convenções, multi-tenant, autenticação, auditoria, e-mail, tempo real, modo offline |
+| 01 | [Fundação](01-fundacao.md) | Repositórios, contratos via OpenAPI, infraestrutura, convenções, multi-tenant, autenticação, auditoria, e-mail, tempo real, modo offline |
 | 02 | [Admin da plataforma](02-admin-plataforma.md) | RBAC do admin, organizações, assinatura, comunicados, métricas, entrar como |
 | 03 | [Configuração da unidade](03-configuracao-unidade.md) | Unidades, estações, etapas, cardápio, modificadores, colaboradores e permissões |
 | 04 | [Turno e comandas](04-turno-comandas.md) | Turno, acordo, preços do turno, comandas, pedidos, itens, telas de balcão e estação |

@@ -1,24 +1,3 @@
-# AGENTS.md
-
-Instruções para agentes de código (Claude Code, Codex, Cursor e similares) que trabalham no `varal-docs`.
-
-> Arquivo gerado a partir do [varal-docs](https://github.com/mchlima/varal-docs/tree/main/docs/agents) (`docs/agents/varal-docs.md` + `docs/agents/regras-comuns.md`). Não edite aqui: mude no varal-docs e regenere com `scripts/build-agents.sh varal-docs`.
-
-## Este repositório: varal-docs
-
-Documentação do produto. Não há código.
-
-- `docs/specs/`: specs do MVP (fonte da verdade de todas as regras de produto).
-- `docs/agents/`: regras dos agentes. `regras-comuns.md` vale para todos os repositórios; os demais arquivos têm a parte específica de cada um.
-- `scripts/build-agents.sh`: monta o `AGENTS.md` de um repositório juntando a parte específica e as regras comuns.
-
-Regras deste repositório:
-
-- Mudança de regra de produto começa aqui, num PR, antes ou junto do PR de código que a implementa.
-- Ao mudar `docs/agents/`, regenere o `AGENTS.md` de cada repositório afetado (`scripts/build-agents.sh <repositório>`) e abra um PR em cada um. Nunca edite a parte comum diretamente no `AGENTS.md` de outro repositório.
-- A identidade visual está na spec 08; os tokens de cor e tipografia dos apps seguem a tabela de lá.
-- Escopos de commit adicionais: `specs`, `agents`, `glossary`.
-
 ## O projeto Varal
 
 Varal é um SaaS de assinatura mensal para barracas de feirinha (espetos, pastéis, tapiocas). Cada colaborador usa o próprio celular como estação de trabalho: o balcão registra o pedido e ele cai direto na tela da cozinha, em tempo real. O sistema cobre comandas, pagamentos registrados, caixa, fiado e relatórios, além de um admin para a equipe do Varal. Piloto: um vendedor de espetos de churrasco.

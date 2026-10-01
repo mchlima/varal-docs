@@ -8,7 +8,7 @@ Criar a base sobre a qual todos os módulos são construídos: estrutura do repo
 
 **Dentro**
 
-- Monorepo com API, app dos clientes, app do admin e pacote compartilhado.
+- Repositórios separados para a API, o app dos clientes, o admin, a infraestrutura e a documentação.
 - Docker Compose para desenvolvimento e produção no VPS, com NGINX.
 - Autenticação de dono, colaborador e admin da plataforma.
 - Redefinição de senha e convite por e-mail.
@@ -23,61 +23,80 @@ Criar a base sobre a qual todos os módulos são construídos: estrutura do repo
 - Modo offline completo (operar horas sem internet com resolução de conflitos).
 - Cadastro do dono pelo site (no piloto o admin cria a conta).
 
-## 3. Estrutura do monorepo
+## 3. Repositórios
+
+Cada parte do sistema tem o próprio repositório no GitHub (`mchlima/...`):
+
+| Repositório | Conteúdo | Stack |
+| --- | --- | --- |
+| `varal-docs` | Specs, glossário, decisões e regras comuns dos agentes | Markdown |
+| `varal-web-api` | API REST (`/api/v1`) e WebSocket (`/ws`), banco e migrations | NestJS, PostgreSQL |
+| `varal-panel-web` | App dos clientes: balcão, estações, caixa e painel do dono (PWA) | Nuxt |
+| `varal-admin-web` | Admin da plataforma | Nuxt |
+| `varal-infra` | Docker Compose de produção, NGINX, backup e Postgres de desenvolvimento | Docker, NGINX |
+
+Na máquina de desenvolvimento, os repositórios ficam lado a lado numa pasta comum, para que agentes e scripts enxerguem os vizinhos por caminho relativo:
 
 ```
-varal/
-├── apps/
-│   ├── api/        # NestJS — API REST + WebSocket, para os dois apps
-│   ├── web/        # Nuxt — balcão, estações, caixa e painel do dono (PWA)
-│   └── admin/      # Nuxt — admin da plataforma
-├── packages/
-│   └── shared/     # tipos, enums, schemas de validação, contratos de eventos
-├── docs/specs/
-├── infra/          # docker compose, nginx, scripts de backup
-└── package.json    # pnpm workspaces
+varal/                 (pasta comum, não é repositório)
+├── varal-docs/
+├── varal-web-api/
+├── varal-panel-web/
+├── varal-admin-web/
+└── varal-infra/
 ```
 
-- Gerenciador: pnpm workspaces. Node 22 LTS. TypeScript em modo `strict` em todos os pacotes.
-- `packages/shared` é a única fonte de enums de estado (`TabStatus`, `OrderStatus`…), schemas de validação de entrada e payloads de eventos em tempo real. API e apps importam dele; nada é duplicado.
-- Validação: **zod (proposta)**, usada na API (pipe de validação) e nos formulários dos apps.
-- ORM: **Prisma (proposta)**, com migrations versionadas em `apps/api/prisma`.
+- Node 22 LTS e TypeScript em modo `strict` nos três projetos de código. Gerenciador de pacotes: pnpm.
+- Validação: **zod (proposta)** na API e nos formulários dos apps.
+- ORM: **Prisma (proposta)**, com migrations versionadas no `varal-web-api`.
+
+### 3.1 Contratos entre API e apps
+
+Não há pacote compartilhado. A API é a fonte única dos contratos e os publica como OpenAPI:
+
+- **RN-01.09** O `varal-web-api` gera o documento OpenAPI 3.1 a partir do código e o mantém commitado em `openapi.json`, na raiz do repositório. Todo PR que muda rota, schema, enum ou evento atualiza esse arquivo; a CI falha se o arquivo estiver desatualizado.
+- **RN-01.10** Enums de estado (`TabStatus`, `OrderStatus`…) e os payloads dos eventos em tempo real entram no OpenAPI como schemas em `components.schemas` (eventos com o prefixo `Event`, ex.: `EventOrderCreated`), mesmo os que não aparecem em nenhuma rota.
+- **RN-01.11** `varal-panel-web` e `varal-admin-web` geram os tipos e o cliente HTTP a partir desse arquivo com **openapi-typescript e openapi-fetch (proposta)**, por um script `pnpm gen:api` que lê `../varal-web-api/openapi.json` (ou a URL do arquivo no GitHub, na CI). Os tipos gerados ficam commitados no app e nunca são editados à mão.
+- **RN-01.12** Mudanças na API são compatíveis com versões anteriores sempre que possível (só adicionar campos, rotas e valores). Uma mudança incompatível exige PRs coordenados nos repositórios afetados e o rodapé `BREAKING CHANGE` no commit da API.
+- Os tokens visuais (spec 08) são mantidos nos dois apps, com a spec 08 como fonte; mudança de token é feita nos dois.
 
 ## 4. Infraestrutura
 
-| Serviço | Imagem / app | Exposição |
+Definida no `varal-infra`.
+
+| Serviço | Origem | Exposição |
 | --- | --- | --- |
 | `nginx` | NGINX | Portas 80/443, termina HTTPS |
-| `api` | `apps/api` | Interna, porta 3000 |
-| `web` | `apps/web` (build estático servido pelo NGINX) | Via NGINX |
-| `admin` | `apps/admin` (build estático servido pelo NGINX) | Via NGINX |
+| `api` | imagem do `varal-web-api` | Interna, porta 3000 |
+| `panel` | build estático do `varal-panel-web`, servido pelo NGINX | Via NGINX |
+| `admin` | build estático do `varal-admin-web`, servido pelo NGINX | Via NGINX |
 | `postgres` | PostgreSQL 16 | Interna, volume persistente |
 
 Domínios **(proposta)**, sob kratinho.com.br enquanto não houver domínio próprio:
 
 | Host | Serve |
 | --- | --- |
-| `varal.kratinho.com.br` | App `web`; `/api` e `/ws` encaminhados para `api` |
-| `admin.varal.kratinho.com.br` | App `admin`; `/api` encaminhado para `api` |
+| `varal.kratinho.com.br` | `varal-panel-web`; `/api` e `/ws` encaminhados para a API |
+| `admin.varal.kratinho.com.br` | `varal-admin-web`; `/api` encaminhado para a API |
 
 - API e app no mesmo host evitam CORS e permitem cookies `SameSite=Strict`.
-- Os apps são SPAs (Nuxt com `ssr: false`) instaláveis como PWA no `web`.
+- Os apps são SPAs (Nuxt com `ssr: false`); o `varal-panel-web` é instalável como PWA.
+- Cada repositório de código publica a própria imagem ou build; o `varal-infra` só referencia versões (tags), sem copiar código.
 - Backup: `pg_dump` diário às 04:00 (horário de Brasília), comprimido, enviado para armazenamento fora do VPS, com retenção de 30 dias. O destino é questão aberta.
-- Variáveis sensíveis (SMTP, segredos de token, banco) só em variáveis de ambiente, nunca no repositório. Um `.env.example` lista todas.
+- Variáveis sensíveis (SMTP, segredos de token, banco) só em variáveis de ambiente, nunca em repositório. Cada repositório tem um `.env.example` com as suas.
 
 ### 4.1 Desenvolvimento com vários agentes em paralelo
 
-O repositório é trabalhado por vários agentes ao mesmo tempo, cada um num git worktree em `.worktrees/` (regras no `AGENTS.md`). O ambiente de desenvolvimento precisa permitir vários worktrees rodando juntos na mesma máquina.
+Cada repositório é trabalhado por vários agentes ao mesmo tempo, cada um num git worktree em `.worktrees/` do próprio repositório (regras no `AGENTS.md`). O ambiente de desenvolvimento precisa permitir vários worktrees rodando juntos na mesma máquina.
 
-- **RN-01.06** Um Postgres de desenvolvimento compartilhado roda num projeto Compose fixo (`varal-dev-db`, porta 5432). Cada worktree usa **um banco próprio** nesse servidor, chamado `varal_<slug-da-branch>`.
-- **RN-01.07** Cada worktree tem um `.env.local` (fora do git) com `WORKTREE_SLUG`, `PORT_OFFSET`, as portas resultantes, `DATABASE_URL` do seu banco e `COMPOSE_PROJECT_NAME=varal-<slug>`.
-- **RN-01.08** Portas: API `3000 + PORT_OFFSET`, web `3100 + PORT_OFFSET`, admin `3200 + PORT_OFFSET`. O checkout principal usa `PORT_OFFSET=0`; cada worktree recebe o próximo valor livre entre 1 e 99.
-- Um script `scripts/worktree.sh` faz o ciclo completo:
-  - `new <tipo>/<descricao>`: cria o worktree a partir da `main`, escolhe um `PORT_OFFSET` livre, gera o `.env.local`, cria o banco, instala dependências e aplica migrations e seed;
-  - `list`: mostra worktrees com branch, portas e banco;
-  - `remove <nome>`: apaga o banco do worktree e remove o worktree (recusa se houver alterações sem commit).
-- Os testes automatizados de cada worktree usam um banco de teste próprio (`varal_<slug>_test`), recriado a cada execução.
-- Nenhum script do projeto pode apagar bancos, volumes ou containers que não sejam do próprio worktree.
+- **RN-01.06** Um Postgres de desenvolvimento compartilhado, definido no `varal-infra` (`dev/compose.yml`, projeto Compose fixo `varal-dev-db`, porta 5432), atende todos os worktrees da API. Cada worktree do `varal-web-api` usa **um banco próprio** nesse servidor, chamado `varal_<slug-da-branch>`, e um banco de teste `varal_<slug>_test`, recriado a cada execução dos testes.
+- **RN-01.07** Cada worktree tem um `.env.local` (fora do git) com `WORKTREE_SLUG`, `PORT_OFFSET` e as variáveis do seu projeto: na API, a porta e o `DATABASE_URL`; nos apps, a porta e `API_BASE_URL`.
+- **RN-01.08** Portas: API `3000 + PORT_OFFSET`, `varal-panel-web` `3100 + PORT_OFFSET`, `varal-admin-web` `3200 + PORT_OFFSET`. O checkout principal usa `PORT_OFFSET=0`; cada worktree recebe o próximo valor livre entre 1 e 99. Por padrão, um app aponta para a API do checkout principal (`http://localhost:3000`); para testar contra a API de uma branch, ajusta-se `API_BASE_URL` no `.env.local`.
+- Cada repositório de código tem um script `scripts/worktree.sh`:
+  - `new <tipo>/<descricao>`: cria o worktree a partir da `main`, escolhe um `PORT_OFFSET` livre, gera o `.env.local`, instala dependências e, na API, cria o banco e aplica migrations e seed;
+  - `list`: mostra worktrees com branch e portas (e banco, na API);
+  - `remove <nome>`: remove o worktree, recusando se houver alterações sem commit; na API, apaga também o banco do worktree.
+- Nenhum script pode apagar bancos, volumes ou containers que não sejam do próprio worktree.
 
 ## 5. Convenções da API
 
@@ -107,9 +126,9 @@ O repositório é trabalhado por vários agentes ao mesmo tempo, cada um num git
 
 | Perfil | App | Login | Identificador único |
 | --- | --- | --- | --- |
-| Dono | `web` | e-mail + senha | e-mail, global |
-| Colaborador | `web` | código do estabelecimento + username + senha | `(organization_id, username)` |
-| Admin da plataforma | `admin` | e-mail + senha | e-mail, global entre admins |
+| Dono | `varal-panel-web` | e-mail + senha | e-mail, global |
+| Colaborador | `varal-panel-web` | código do estabelecimento + username + senha | `(organization_id, username)` |
+| Admin da plataforma | `varal-admin-web` | e-mail + senha | e-mail, global entre admins |
 
 - O código do estabelecimento é a coluna `organizations.access_code`: 6 caracteres alfanuméricos maiúsculos, sem caracteres ambíguos (0/O, 1/I), único, gerado na criação.
 - O link de acesso do colaborador é `https://varal.kratinho.com.br/e/{access_code}`; abre a tela de login com o código preenchido. O QR code codifica esse link.
@@ -118,7 +137,7 @@ O repositório é trabalhado por vários agentes ao mesmo tempo, cada um num git
 ### 7.2 Sessão
 
 - **(proposta)** Token de acesso JWT com validade de 15 min e token de renovação opaco com validade de 30 dias, rotativo, guardado como hash no banco. Ambos em cookies `httpOnly`, `Secure`, `SameSite=Strict`.
-- Cookies do admin usam nome e segredo de assinatura diferentes dos do app `web`; um token de um contexto nunca é aceito no outro.
+- Cookies do admin usam nome e segredo de assinatura diferentes dos do app dos clientes; um token de um contexto nunca é aceito no outro.
 - Cada aparelho recebe um `device_id` (UUID guardado no aparelho) enviado em todas as requisições, usado na auditoria e na lista de sessões.
 - Logout encerra a sessão do aparelho. Troca ou redefinição de senha encerra todas as sessões daquele usuário.
 - Desativar um colaborador encerra todas as sessões dele imediatamente; o WebSocket dele é desconectado.
@@ -175,7 +194,7 @@ Toda ação que cria, altera, cancela ou remove dado relevante grava uma linha e
 
 ## 11. Queda de conexão (fila local)
 
-- O app `web` guarda numa fila local (IndexedDB) toda ação operacional que não conseguiu enviar: criar pedido, mudar etapa, cancelar item, registrar pagamento, movimento de caixa.
+- O app `varal-panel-web` guarda numa fila local (IndexedDB) toda ação operacional que não conseguiu enviar: criar pedido, mudar etapa, cancelar item, registrar pagamento, movimento de caixa.
 - Cada ação na fila tem sua `Idempotency-Key`, gerada no momento da ação.
 - Quando a conexão volta, a fila é enviada em ordem. Uma ação recusada pela API (ex.: comanda já fechada) é retirada da fila e mostrada ao usuário com o motivo.
 - Um indicador fixo no topo mostra "Sem conexão — N ações aguardando envio" enquanto houver pendências.
@@ -277,7 +296,7 @@ No MVP cada organização tem um dono. A tabela já permite mais de um.
 
 Rotas em português, sem acentos, com hífen entre palavras. Parâmetros identificam o recurso pelo id, exceto o código do estabelecimento e o número da comanda, que são o que o usuário reconhece.
 
-**App `web`**
+**App `varal-panel-web`**
 
 | Rota | Tela | Spec |
 | --- | --- | --- |
@@ -305,7 +324,7 @@ Rotas em português, sem acentos, com hífen entre palavras. Parâmetros identif
 | `/painel/relatorios/turnos/{id}` | Relatório do turno | 07 |
 | `/painel/acessos-de-suporte` | Acessos de "entrar como" na conta | 02 |
 
-**App `admin`**
+**App `varal-admin-web`**
 
 | Rota | Tela |
 | --- | --- |
@@ -321,16 +340,18 @@ Rotas em português, sem acentos, com hífen entre palavras. Parâmetros identif
 
 ## 15. Critérios de aceite
 
-- **CA-01.01** `docker compose up` sobe API, apps, NGINX e banco localmente, com migrations aplicadas e um seed de exemplo (uma organização, uma unidade com o template padrão, um dono, dois colaboradores, um admin Super admin).
+- **CA-01.01** Com o Postgres de desenvolvimento do `varal-infra` rodando, `scripts/worktree.sh new` em cada repositório de código deixa o projeto rodando localmente; na API, com migrations aplicadas e um seed de exemplo (uma organização, uma unidade com o template padrão, um dono, dois colaboradores, um admin Super admin).
 - **CA-01.02** Um colaborador da organização A, com token válido, recebe 404 ao acessar qualquer recurso da organização B, em todos os endpoints (teste automatizado).
 - **CA-01.03** O login do colaborador pelo link `/e/{code}` funciona digitando apenas username e senha.
-- **CA-01.04** Um token do app `web` é recusado nas rotas `/api/v1/admin` e vice-versa.
+- **CA-01.04** Um token do app `varal-panel-web` é recusado nas rotas `/api/v1/admin` e vice-versa.
 - **CA-01.05** Redefinir a senha de um colaborador encerra as sessões abertas dele em até 15 minutos (expiração do token de acesso) e desconecta o WebSocket na hora.
 - **CA-01.06** Repetir uma requisição de criação com a mesma `Idempotency-Key` não cria registro duplicado e devolve a mesma resposta.
 - **CA-01.07** Com o aparelho sem conexão, uma mudança de etapa feita na estação fica na fila local e é aplicada uma única vez quando a conexão volta.
 - **CA-01.08** Cada ação listada na seção 8 gera exatamente uma linha de auditoria com ator, aparelho e alterações.
 - **CA-01.09** Ao passar de 8.000 envios no mês, o painel do admin mostra o alerta de e-mail.
-- **CA-01.10** O backup diário gera um arquivo restaurável (teste de restauração documentado em `infra/`).
+- **CA-01.10** O backup diário gera um arquivo restaurável (teste de restauração documentado em `varal-infra`).
+- **CA-01.11** A CI do `varal-web-api` falha quando o `openapi.json` commitado difere do gerado pelo código.
+- **CA-01.12** Os apps compilam com os tipos gerados do `openapi.json` atual; um campo removido da API quebra a compilação do app que o usa.
 
 ## 16. Questões abertas
 
