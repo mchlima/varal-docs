@@ -36,7 +36,7 @@ Permitir que a barraca feche uma comanda sem receber na hora, em nome de um clie
 - **RN-06.05** Pendurar exige um cliente da unidade. A comanda guarda o `customer_id` e passa a `on_credit`.
 - **RN-06.06** Pagamentos já feitos antes de pendurar continuam valendo; o valor pendurado é o saldo (total − pagamentos).
 - **RN-06.07** Comanda pendurada não aceita mais pedidos, descontos nem cancelamentos de item.
-- **RN-06.08** No turno contratado com modalidade `consumption_billed`, a comanda do contratante é pendurada em um cliente com o nome do contratante.
+- **RN-06.08** No turno contratado com modalidade `consumption_billed`, a comanda do contratante é pendurada em um cliente com o nome do contratante. Nesse caso a comanda pode ser pendurada sem escolher cliente: a API usa um cliente com o nome do contratante e referência "Contratante de turno", criado uma vez e reaproveitado. Fora desse caso, pendurar exige cliente (`CUSTOMER_REQUIRED`).
 
 ## 5. Quitação
 
@@ -61,6 +61,7 @@ O saldo a receber de uma comanda é `total − soma dos pagamentos não estornad
 | Método e rota | Descrição |
 | --- | --- |
 | `GET /api/v1/units/{id}/customers?q=` | Busca por nome, telefone, CPF ou referência |
+| `GET /api/v1/customers/{id}` | Cliente com as comandas, o saldo e o histórico de quitações |
 | `POST /api/v1/units/{id}/customers` | Cadastro |
 | `PATCH /api/v1/customers/{id}` | Edição |
 | `DELETE /api/v1/customers/{id}` | Remoção a pedido (anonimiza; RN-06.03) |
@@ -90,3 +91,11 @@ Eventos (sala `unit`): `tab.updated` ao pendurar e a cada quitação.
 ## 10. Questões abertas
 
 Nenhuma no momento.
+
+## Decisões da implementação (fase 6)
+
+- Pendurar só em `closing` e com saldo maior que zero; a comanda conta nas métricas no momento em que é pendurada.
+- Quitar exige um turno e um caixa abertos na unidade (não precisa ser o turno da comanda; sem turno, `NO_SHIFT_OPEN`). A quitação pode ser parcial; com saldo zero a comanda vai a `settled`. Estornar uma quitação volta a comanda a `on_credit`; pagamentos feitos antes de pendurar não podem ser estornados.
+- O aviso de nome repetido (RN-06.02) é feito pelo app, que busca o nome antes de cadastrar.
+- A auditoria registra só quais dados de identificação o cliente tem, nunca os valores (o log não pode ser apagado).
+- Os eventos e a comanda resumida mostram nome e referência do cliente, nunca telefone ou CPF.
