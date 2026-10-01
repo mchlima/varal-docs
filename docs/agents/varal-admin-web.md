@@ -2,7 +2,7 @@
 
 Admin da plataforma Varal: Nuxt em modo SPA, usado pela equipe do Varal para organizações, assinatura, comunicados, métricas, "entrar como", e-mails, auditoria, usuários e papéis. Specs principais: 01 (autenticação, rotas), 02 (admin) e 08 (identidade visual).
 
-Stack: Node 22, TypeScript estrito, Nuxt (`ssr: false`), cliente gerado do OpenAPI com openapi-typescript e openapi-fetch **(proposta)**.
+Stack: Node 22, TypeScript estrito, Nuxt (`ssr: false`), cliente gerado do OpenAPI com openapi-typescript e openapi-fetch.
 
 ### Comandos
 

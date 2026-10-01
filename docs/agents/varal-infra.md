@@ -4,7 +4,7 @@ Infraestrutura do Varal: Docker Compose de produção no VPS, configuração do 
 
 ### Comandos
 
-Ainda não há arquivos. Quando forem criados, registre aqui como subir o Postgres de desenvolvimento, validar a configuração do NGINX, fazer deploy e restaurar um backup.
+Ainda não há arquivos. Quando forem criados, registre aqui como subir o Postgres de desenvolvimento, validar a configuração do NGINX, e fazer deploy.
 
 ### Regras deste repositório
 
@@ -15,6 +15,6 @@ Ainda não há arquivos. Quando forem criados, registre aqui como subir o Postgr
 - **Segredos** nunca entram no repositório: só `.env.example` com nomes e descrições.
 - **Versões, não código:** o Compose de produção referencia imagens ou builds dos outros repositórios por tag; não copie código deles para cá.
 - **Postgres de desenvolvimento** (`dev/compose.yml`, projeto `varal-dev-db`): é compartilhado por todos os worktrees de todos os agentes. Nunca rode `docker compose down -v`, apague o volume nem recrie o container sem pedido explícito, porque isso destrói os bancos de todos.
-- **Backup:** toda mudança no backup vem com o procedimento de restauração testado e documentado.
+- **Backup:** fora do MVP por enquanto (spec 01, seção 4). Quando entrar, vem com o procedimento de restauração testado e documentado.
 
 Escopos de commit adicionais: `nginx`, `compose`, `backup`, `dev`, `deploy`.

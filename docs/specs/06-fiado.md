@@ -22,9 +22,13 @@ Permitir que a barraca feche uma comanda sem receber na hora, em nome de um clie
 
 ## 3. Clientes
 
-- **RN-06.01** O cliente pertence a uma unidade. Campos: nome (obrigatório, até 60 caracteres), telefone (obrigatório, formato brasileiro com DDD), referência opcional (até 60 caracteres, ex.: "apto 42", "bloco B").
-- **RN-06.02** Telefone é único dentro da unidade. Ao pendurar, o balcão busca por nome ou telefone e oferece o cadastro rápido se não encontrar.
-- **RN-06.03** Cliente com valor a receber não pode ser excluído. Cliente sem pendências pode ser excluído a pedido (LGPD): nome, telefone e referência são substituídos por "Cliente removido", mantendo as comandas para o histórico.
+- **RN-06.01** O cliente pertence a uma unidade. Só o nome é obrigatório (até 60 caracteres). Dados de identificação, todos opcionais, servem para diferenciar clientes de mesmo nome:
+  - telefone (formato brasileiro com DDD);
+  - CPF (validado pelos dígitos verificadores);
+  - referência (até 60 caracteres, ex.: "apto 42, bloco B", "setor financeiro", "barraca do lado");
+  - observação (até 140 caracteres, ex.: "filho da dona Maria").
+- **RN-06.02** Telefone e CPF, quando informados, são únicos dentro da unidade. Ao pendurar, o balcão busca por nome, telefone, CPF ou referência e oferece o cadastro rápido se não encontrar. Na lista de resultados, cada cliente aparece com os dados de identificação que tiver, para não confundir homônimos; ao cadastrar um nome que já existe sem nenhum dado de identificação, o balcão avisa e sugere preencher a referência.
+- **RN-06.03** Cliente com valor a receber não pode ser excluído. Cliente sem pendências pode ser excluído a pedido (LGPD): nome e dados de identificação são apagados e o nome vira "Cliente removido", mantendo as comandas para o histórico.
 
 ## 4. Pendurar
 
@@ -46,7 +50,7 @@ Permitir que a barraca feche uma comanda sem receber na hora, em nome de um clie
 
 Toda tabela tem `organization_id`.
 
-**customers**: `unit_id`, `name`, `phone` (só dígitos), `reference`, `anonymized_at`. Único `(unit_id, phone)` entre os não anonimizados.
+**customers**: `unit_id`, `name`, `phone` (só dígitos, opcional), `cpf` (só dígitos, opcional), `reference` (opcional), `note` (opcional), `anonymized_at`. Únicos parciais `(unit_id, phone)` e `(unit_id, cpf)`, entre os não anonimizados com o campo preenchido.
 
 **tabs** (spec 04): `customer_id`, `credit_at` (quando foi pendurada), `settled_at`.
 
@@ -56,7 +60,7 @@ O saldo a receber de uma comanda é `total − soma dos pagamentos não estornad
 
 | Método e rota | Descrição |
 | --- | --- |
-| `GET /api/v1/units/{id}/customers?q=` | Busca por nome ou telefone |
+| `GET /api/v1/units/{id}/customers?q=` | Busca por nome, telefone, CPF ou referência |
 | `POST /api/v1/units/{id}/customers` | Cadastro |
 | `PATCH /api/v1/customers/{id}` | Edição |
 | `DELETE /api/v1/customers/{id}` | Remoção a pedido (anonimiza; RN-06.03) |
@@ -70,7 +74,7 @@ Eventos (sala `unit`): `tab.updated` ao pendurar e a cada quitação.
 
 | Tela | Conteúdo e ações |
 | --- | --- |
-| Pendurar (no Receber do balcão) | Busca de cliente; cadastro rápido com nome, telefone e referência; confirmação mostrando o valor pendurado |
+| Pendurar (no Receber do balcão) | Busca de cliente; cadastro rápido com nome e, opcionalmente, telefone, CPF, referência e observação; confirmação mostrando o valor pendurado |
 | Aba Fiado (varal do balcão) | Comandas penduradas da unidade, mais antigas primeiro, com cliente, data e saldo; tocar abre a tela de receber |
 | Fiado (painel do dono) | Total a receber; lista por cliente com comandas, datas e saldos; histórico de quitações; edição e remoção de cliente |
 
@@ -81,7 +85,8 @@ Eventos (sala `unit`): `tab.updated` ao pendurar e a cada quitação.
 - **CA-06.03** Uma quitação de R$ 60,00 feita no turno seguinte entra no caixa desse turno, deixa saldo de R$ 40,00 e a comanda continua `on_credit`; uma segunda de R$ 40,00 deixa a comanda `settled`.
 - **CA-06.04** Cliente de uma unidade não aparece na busca de outra unidade da mesma organização.
 - **CA-06.05** A API recusa excluir cliente com saldo a receber; sem saldo, o cliente é anonimizado e as comandas continuam no histórico.
+- **CA-06.06** Um cliente pode ser cadastrado só com o nome; dois clientes com o mesmo nome aparecem na busca com seus dados de identificação, e telefone ou CPF repetido na mesma unidade é recusado.
 
 ## 10. Questões abertas
 
-- Telefone obrigatório é uma proposta desta spec, para diferenciar clientes de mesmo nome; confirmar com o piloto.
+Nenhuma no momento.
