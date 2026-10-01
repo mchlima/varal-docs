@@ -211,13 +211,17 @@ Toda ação que cria, altera, cancela ou remove dado relevante grava uma linha e
 
 ## 10. Tempo real
 
-- Socket.IO no NestJS, caminho `/ws`.
-- A conexão é autenticada pelo mesmo cookie de sessão; sem sessão válida, a conexão é recusada.
+- Socket.IO no NestJS, caminho `/ws`, só com o transporte WebSocket (sem long-polling, então sem sticky session). Ping a cada 25 s, dentro do limite de 100 s do Cloudflare. O app conecta com `io(API, { path: '/ws', transports: ['websocket'], withCredentials: true, auth: { deviceId } })`.
+- O servidor confere o `Origin` do handshake contra a mesma lista exata de origens da API (RN-01.20), já que o navegador não aplica CORS a WebSocket.
+- A conexão é autenticada pelo mesmo cookie de sessão do app (nunca o do admin) e pelo `deviceId` da sessão; sem sessão válida, a conexão é recusada com `connect_error` no formato de erro da API (`UNAUTHENTICATED`, `DEVICE_ID_REQUIRED`).
+- Sessão encerrada (logout, troca ou redefinição de senha, desativação) → evento `session.revoked` e desconexão na hora; o app volta ao login. Token de acesso vencido → `session.expired` e desconexão; o app renova por REST e reconecta.
 - Salas:
   - `unit:{unitId}` — tudo que acontece na unidade (balcão e painel do dono);
   - `station:{stationId}` — itens que entram, mudam ou saem da fila de uma estação.
-- O servidor só coloca o aparelho em salas da organização e das unidades e estações que o usuário pode acessar.
-- Eventos levam `organizationId`, `unitId`, `occurredAt` e um número de versão do recurso. O app ignora eventos com versão menor que a que já tem.
+- O servidor só coloca o aparelho em salas da organização e das unidades e estações que o usuário pode acessar: o dono em todas as unidades ativas; o colaborador nas unidades e estações das suas permissões. O app pode pedir `rooms.join`/`rooms.leave`, sempre conferido no servidor (`ROOM_FORBIDDEN`).
+- As salas são definidas na conexão. Mudança de permissão de um colaborador (spec 03) encerra as sessões dele ou as conexões de tempo real, para valer na hora.
+- Eventos têm o envelope `{ type, organizationId, unitId, occurredAt, version, data }` e só são emitidos depois que a transação que os gerou é confirmada. O app ignora eventos com versão menor ou igual à que já tem. Os payloads entram no OpenAPI como schemas `Event…` (RN-01.10).
+- No MVP a API roda numa instância só; salas e desconexões ficam na memória do processo. Mais de uma instância exigiria um adapter compartilhado do Socket.IO.
 - **RN-01.05** Ao reconectar, o app sempre busca o estado atual por REST (comandas abertas, fila da estação) antes de voltar a aplicar eventos. Eventos perdidos durante a desconexão nunca são necessários para chegar ao estado correto.
 - Os eventos de cada módulo estão definidos nas specs 03, 04 e 05.
 
