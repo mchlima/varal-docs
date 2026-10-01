@@ -343,6 +343,7 @@ Rotas em português, sem acentos, com hífen entre palavras. Parâmetros identif
 | `/balcao/comandas/{numero}` | Comanda do turno atual | 04 |
 | `/balcao/comandas/{numero}/pedido` | Montar pedido | 04 |
 | `/balcao/comandas/{numero}/receber` | Receber, desconto e pendurar | 05, 06 |
+| `/balcao/paga-antes` | Comanda paga antes: montar pedido e cobrar numa operação | 05 |
 | `/estacao/{id}` | Fila de uma estação | 04 |
 | `/caixas` | Caixas do turno | 05 |
 | `/caixas/{id}/fechar` | Fechamento de caixa | 05 |
