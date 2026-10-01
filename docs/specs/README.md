@@ -34,7 +34,7 @@ Itens marcados como **(proposta)** são escolhas técnicas feitas na escrita da 
 
 ## Convenções
 
-- **Idioma:** código, banco de dados, API e chaves de permissão em inglês; interface, mensagens e documentação em português do Brasil. **(proposta)**
+- **Idioma:** toda a codebase em inglês (código, banco de dados, rotas da API, eventos, chaves de permissão). Interface, mensagens ao usuário, **rotas do front** e documentação em português do Brasil. Os arquivos de `pages/` do Nuxt seguem a rota em português, por causa do roteamento por arquivo. Rotas do front na spec 01, seção 14.
 - **Identificadores:** UUID v7 em todas as tabelas.
 - **Dinheiro:** inteiros em centavos de real, colunas com sufixo `_cents`. Nunca ponto flutuante.
 - **Data e hora:** `timestamptz` em UTC no banco; exibição no fuso `America/Sao_Paulo`.

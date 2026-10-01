@@ -259,6 +259,52 @@ No MVP cada organização tem um dono. A tabela já permite mais de um.
 | Esqueci a senha | web (dono) e admin | Pede o e-mail |
 | Indicador de conexão | web | Faixa fixa no topo quando desconectado ou com ações pendentes |
 
+### 14.1 Rotas do front
+
+Rotas em português, sem acentos, com hífen entre palavras. Parâmetros identificam o recurso pelo id, exceto o código do estabelecimento e o número da comanda, que são o que o usuário reconhece.
+
+**App `web`**
+
+| Rota | Tela | Spec |
+| --- | --- | --- |
+| `/entrar` | Login (dono e colaborador) | 01 |
+| `/e/{codigo}` | Login do colaborador com o código preenchido | 01 |
+| `/definir-senha` | Convite e redefinição de senha | 01 |
+| `/esqueci-a-senha` | Pedido de redefinição do dono | 01 |
+| `/estacoes` | Escolha de unidade e estação | 01 |
+| `/balcao` | Varal de comandas | 04 |
+| `/balcao/comandas/{numero}` | Comanda do turno atual | 04 |
+| `/balcao/comandas/{numero}/pedido` | Montar pedido | 04 |
+| `/balcao/comandas/{numero}/receber` | Receber, desconto e pendurar | 05, 06 |
+| `/estacao/{id}` | Fila de uma estação | 04 |
+| `/caixas` | Caixas do turno | 05 |
+| `/caixas/{id}/fechar` | Fechamento de caixa | 05 |
+| `/painel` | Início do painel do dono | — |
+| `/painel/unidades` | Unidades | 03 |
+| `/painel/unidades/{id}/fluxo` | Estações e fluxo | 03 |
+| `/painel/cardapio` | Cardápio | 03 |
+| `/painel/colaboradores` | Colaboradores e permissões | 03 |
+| `/painel/acesso-da-equipe` | Código, link e QR | 03 |
+| `/painel/turnos` | Abrir turno e turno atual | 04 |
+| `/painel/fiado` | Clientes e valores a receber | 06 |
+| `/painel/relatorios` | Histórico | 07 |
+| `/painel/relatorios/turnos/{id}` | Relatório do turno | 07 |
+| `/painel/acessos-de-suporte` | Acessos de "entrar como" na conta | 02 |
+
+**App `admin`**
+
+| Rota | Tela |
+| --- | --- |
+| `/entrar`, `/definir-senha`, `/esqueci-a-senha` | Acesso |
+| `/` | Início |
+| `/organizacoes`, `/organizacoes/nova`, `/organizacoes/{id}` | Organizações |
+| `/comunicados`, `/comunicados/novo`, `/comunicados/{id}` | Comunicados |
+| `/metricas` | Métricas |
+| `/emails` | E-mails |
+| `/auditoria` | Auditoria |
+| `/usuarios`, `/usuarios/{id}` | Usuários do admin |
+| `/papeis`, `/papeis/{id}` | Papéis |
+
 ## 15. Critérios de aceite
 
 - **CA-01.01** `docker compose up` sobe API, apps, NGINX e banco localmente, com migrations aplicadas e um seed de exemplo (uma organização, uma unidade com o template padrão, um dono, dois colaboradores, um admin Super admin).
