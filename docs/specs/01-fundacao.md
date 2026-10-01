@@ -193,7 +193,12 @@ Toda ação que cria, altera, cancela ou remove dado relevante grava uma linha e
 
 ## 9. E-mail
 
-- Envio via SMTP Locaweb com nodemailer, remetente fixo `Varal <nao-responda@kratinho.com.br>` **(proposta)**.
+- Envio via SMTP Locaweb com nodemailer, remetente fixo `Varal <nao-responda@kratinho.com.br>`.
+- **RN-01.21** O endereço `nao-responda@kratinho.com.br` não recebe e-mail: no Cloudflare Email Routing (MX do domínio no Cloudflare), a regra desse endereço descarta as mensagens (ação *drop*). Respostas e avisos de devolução enviados a ele se perdem, por isso todo e-mail diz no rodapé que não deve ser respondido e indica onde pedir ajuda.
+- **RN-01.22** Autenticação do domínio na zona do Cloudflare, sem proxy:
+  - **SPF**: um único registro TXT em `kratinho.com.br` que autoriza ao mesmo tempo o Cloudflare Email Routing (`include:_spf.mx.cloudflare.net`) e o SMTP Locaweb (o `include` indicado no painel da Locaweb). Dois registros SPF invalidam os dois.
+  - **DKIM**: o registro fornecido pelo painel do SMTP Locaweb, ao lado do DKIM do Cloudflare (`cf2024-1._domainkey`), que já existe.
+  - **DMARC**: registro em `_dmarc.kratinho.com.br`, começando em `p=none` para observar e depois endurecendo para `quarantine`.
 - Envio assíncrono por fila no próprio PostgreSQL (**pg-boss, proposta**), para que lentidão do SMTP não trave a requisição. Até 3 tentativas com espera crescente.
 - Cada envio grava `email_logs` (destinatário, tipo, situação, erro, datas).
 - **RN-01.04** Limite do plano: 10.000 envios por mês. Ao atingir 80% (8.000), o admin da plataforma vê um alerta no painel. Ao atingir 100%, envios não críticos param; convites e redefinições continuam e o alerta muda para crítico.
@@ -374,9 +379,11 @@ Rotas em português, sem acentos, com hífen entre palavras. Parâmetros identif
 - **CA-01.12** Os apps compilam com os tipos gerados do `openapi.json` atual; um campo removido da API quebra a compilação do app que o usa.
 - **CA-01.13** Em produção, nenhum processo do Varal roda fora de Docker; o Compose do Varal não define serviços `nginx` nem `postgres`; a API conecta com o usuário `varal`.
 - **CA-01.14** Os hosts do Varal respondem por HTTPS pelo Cloudflare com SSL Full (strict) sem erro de certificado, e uma ação feita pelo app grava na auditoria o IP real do aparelho, não um IP do Cloudflare.
+- **CA-01.15** Um e-mail de convite enviado para Gmail e Outlook chega na caixa de entrada com SPF, DKIM e DMARC aprovados (`pass` no cabeçalho `Authentication-Results`).
 
 ## 16. Questões abertas
 
+- E-mail: registros SPF (com o `include` do SMTP Locaweb), DKIM do SMTP Locaweb e DMARC ainda não criados (verificado em 2026-10-01). Sem eles, os e-mails de convite e de redefinição de senha tendem a cair no spam.
 - Destino do backup fora do VPS (ex.: bucket S3 compatível, outro servidor).
 - Restringir as portas 80/443 do VPS às faixas de IP do Cloudflare. Hoje elas aceitam qualquer origem, e a regra afetaria também os outros projetos do VPS.
 - Confirmar as propostas técnicas: Prisma, zod, pg-boss, JWT com renovação em cookie.
