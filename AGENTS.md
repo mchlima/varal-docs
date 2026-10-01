@@ -31,7 +31,7 @@ Varal é um SaaS de assinatura mensal para barracas de feirinha (espetos, pasté
 | [`varal-web-api`](https://github.com/mchlima/varal-web-api) | API NestJS (REST `/api/v1` e WebSocket `/ws`), banco e migrations, `openapi.json` |
 | [`varal-panel-web`](https://github.com/mchlima/varal-panel-web) | App Nuxt dos clientes (PWA): balcão, estações, caixa, painel do dono |
 | [`varal-admin-web`](https://github.com/mchlima/varal-admin-web) | App Nuxt do admin da plataforma |
-| [`varal-infra`](https://github.com/mchlima/varal-infra) | Docker Compose de produção, NGINX, backup, Postgres de desenvolvimento |
+| [`varal-infra`](https://github.com/mchlima/varal-infra) | Docker Compose de produção, NGINX, Postgres de desenvolvimento |
 
 Localmente, os repositórios ficam lado a lado numa pasta comum (`varal/varal-docs`, `varal/varal-web-api`…). Use os caminhos relativos `../varal-docs` etc. para ler os vizinhos; nunca edite um repositório vizinho a partir de outro.
 
