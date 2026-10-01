@@ -214,7 +214,7 @@ Toda ação que cria, altera, cancela ou remove dado relevante grava uma linha e
 - Socket.IO no NestJS, caminho `/ws`, só com o transporte WebSocket (sem long-polling, então sem sticky session). Ping a cada 25 s, dentro do limite de 100 s do Cloudflare. O app conecta com `io(API, { path: '/ws', transports: ['websocket'], withCredentials: true, auth: { deviceId } })`.
 - O servidor confere o `Origin` do handshake contra a mesma lista exata de origens da API (RN-01.20), já que o navegador não aplica CORS a WebSocket.
 - A conexão é autenticada pelo mesmo cookie de sessão do app (nunca o do admin) e pelo `deviceId` da sessão; sem sessão válida, a conexão é recusada com `connect_error` no formato de erro da API (`UNAUTHENTICATED`, `DEVICE_ID_REQUIRED`).
-- Sessão encerrada (logout, troca ou redefinição de senha, desativação) → evento `session.revoked` e desconexão na hora; o app volta ao login. Token de acesso vencido → `session.expired` e desconexão; o app renova por REST e reconecta.
+- Sessão encerrada (logout, troca ou redefinição de senha, desativação) → evento `session.revoked` e desconexão na hora; o app volta ao login. Token de acesso vencido → `session.expired` e desconexão; o app renova por REST e reconecta. Permissões do colaborador alteradas → `session.access_changed` e desconexão; o app reconecta e recarrega o `/auth/me`.
 - Salas:
   - `unit:{unitId}` — tudo que acontece na unidade (balcão e painel do dono);
   - `station:{stationId}` — itens que entram, mudam ou saem da fila de uma estação.
