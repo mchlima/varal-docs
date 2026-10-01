@@ -2,7 +2,7 @@
 
 App dos clientes do Varal: Nuxt em modo SPA, instalável como PWA. Telas de balcão, estações (cozinha, balcão de entrega), caixa, fiado e o painel do dono. Specs principais: 01 (autenticação, fila offline, rotas), 03 a 07 (telas) e 08 (identidade visual).
 
-Stack: Node 22, TypeScript estrito, Nuxt (`ssr: false`), PWA, cliente gerado do OpenAPI com openapi-typescript e openapi-fetch, Socket.IO client.
+Stack: Node 26, TypeScript estrito, Nuxt (`ssr: false`), PWA, cliente gerado do OpenAPI com openapi-typescript e openapi-fetch, Socket.IO client.
 
 ### Comandos
 
