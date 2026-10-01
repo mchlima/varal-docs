@@ -9,7 +9,7 @@ docker compose -f dev/compose.yml up -d    # Postgres de desenvolvimento (varal-
 docker compose -f dev/compose.yml ps
 ```
 
-Configuração do NGINX e como aplicá-la no VPS: `nginx/README.md`. Deploy: a definir (plano de desenvolvimento, seção 6).
+Configuração do NGINX: `nginx/README.md`. Produção e deploy: `prod/README.md` (Compose da API, scripts `deploy-*`, usuário `deploy`).
 
 ### Regras deste repositório
 
