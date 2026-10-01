@@ -355,6 +355,7 @@ Rotas em português, sem acentos, com hífen entre palavras. Parâmetros identif
 | `/painel/acesso-da-equipe` | Código, link e QR | 03 |
 | `/painel/turnos` | Abrir turno e turno atual (dono e colaboradores com `can_operate_cash`, RN-04.02; o resto do `/painel` é só do dono) | 04 |
 | `/painel/fiado` | Clientes e valores a receber | 06 |
+| `/painel/fiado/{id}` | Cliente: comandas, saldo e histórico de quitações | 06 |
 | `/painel/relatorios` | Histórico | 07 |
 | `/painel/relatorios/turnos/{id}` | Relatório do turno | 07 |
 | `/painel/acessos-de-suporte` | Acessos de "entrar como" na conta | 02 |
