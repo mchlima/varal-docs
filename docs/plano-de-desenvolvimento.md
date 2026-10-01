@@ -78,7 +78,7 @@ Versões estáveis em 2026-10-01. Fixe a versão maior (`^`) no `package.json`, 
   - **API:** `deploy.sh api vX.Y.Z` baixa a imagem, roda `prisma migrate deploy` num container temporário e só então troca o container `varal-api`. Migrations seguem o padrão expandir e depois contrair, para a versão anterior continuar funcionando durante a troca.
   - **Apps:** o build vai por rsync para `/opt/nginx/html/<app>/releases/<versão>`, e um link `current` troca de versão de uma vez. Voltar versão é trocar o link.
   - **Segredos:** os de deploy ficam nos secrets do GitHub; os da aplicação ficam num `.env` no VPS (permissão 600), fora do git.
-- **Dependências:** atualização automática a decidir (seção 6).
+- **Dependências:** Dependabot, ligado no fim da fase 0, com atualizações agrupadas num PR semanal por repositório (npm, Docker e GitHub Actions).
 
 ## 3. Fases
 
@@ -94,7 +94,7 @@ Base de todos os repositórios, sem regra de negócio.
 | `varal-web-api` | NestJS 12, TypeScript estrito, ESLint e Prettier, Vitest com SWC, Prisma 7 configurado, endpoint de saúde, `openapi.json` gerado, `.env.example`, `scripts/worktree.sh` (RN-01.06 a 01.08), CI |
 | `varal-panel-web` | Nuxt 4 SPA, Tailwind 4, tokens e fontes da spec 08, logo e favicon, `pnpm gen:api`, `scripts/worktree.sh`, CI |
 | `varal-admin-web` | O mesmo, com Nuxt UI 4 |
-| Todos | Action de título de PR, release-please |
+| Todos | Action de título de PR, release-please; Dependabot semanal e agrupado, ligado por último |
 
 Critério: CA-01.01 (cada worktree sobe o projeto rodando). O seed da API vem na fase 1.
 
@@ -193,7 +193,7 @@ Fase 0 ─► Fase 1 ─► Fase 2 ─┬─► Fase 4 ─► Fase 5 ─► Fase
 | Chave de deploy com acesso amplo ao VPS | Usuário `deploy` limitado ao script de deploy |
 | PR fora do padrão no plano free | Action de título como aviso e regra dos agentes |
 | Migration destrutiva sem backup | Padrão expandir/contrair; `pg_dump` manual antes de migrations destrutivas, enquanto não houver backup |
-| Minutos de CI no plano free | Cache, cancelamento de execuções antigas, CI só para código |
+| Minutos de CI no plano free | Cache, cancelamento de execuções antigas, CI só para código, Dependabot agrupado e semanal |
 
 ## 6. Para decidir
 
@@ -203,8 +203,8 @@ Decididos em 2026-10-01:
 
 - **Componentes do admin:** Nuxt UI 4, com identidade visual equivalente à do painel (seção 2.2).
 - **Row-Level Security** no Postgres como segunda camada do multi-tenant: depois do piloto.
+- **Atualização de dependências:** Dependabot, agrupado e semanal, a partir do fim da fase 0.
 
-Pendentes:
+Pendente:
 
 1. **Deploy:** pelo GitHub Actions com usuário `deploy` restrito ou por script rodado à mão. Decidir antes da fase 2.
-2. **Atualização de dependências:** Renovate, Dependabot ou nenhum por enquanto.
