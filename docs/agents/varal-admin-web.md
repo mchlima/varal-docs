@@ -6,7 +6,19 @@ Stack: Node 22, TypeScript estrito, Nuxt (`ssr: false`), cliente gerado do OpenA
 
 ### Comandos
 
-Ainda não há código. Quando o projeto for criado, registre aqui os comandos de instalação, desenvolvimento, testes, lint, `gen:api` e build, e mantenha esta seção atualizada.
+```sh
+pnpm install
+pnpm dev                # http://localhost:$PORT (3200 + PORT_OFFSET)
+pnpm test               # Vitest + @nuxt/test-utils
+pnpm lint && pnpm typecheck
+pnpm generate           # build estático em .output/public
+pnpm gen:api            # regenera app/api/schema.d.ts a partir de ../varal-web-api/openapi.json (ou OPENAPI_SOURCE)
+scripts/worktree.sh new <tipo>/<descricao>   # worktree com porta e .env.local próprios
+scripts/worktree.sh list | remove <nome>
+```
+
+- A URL da API vem de `NUXT_PUBLIC_API_BASE_URL` e fica fixa no build (app estático).
+- Cores só pelos tokens de `app/assets/css/tokens.css`, iguais aos da spec 08. O tema do Nuxt UI (`app.config.ts` e variáveis `--ui-*` em `main.css`) aponta para esses tokens; não use as cores padrão da biblioteca.
 
 ### Regras do app
 
@@ -18,6 +30,6 @@ Ainda não há código. Quando o projeto for criado, registre aqui os comandos d
 
 ### Ambiente
 
-Porta: `3200 + PORT_OFFSET`. `API_BASE_URL` no `.env.local` aponta para a API (padrão: `http://localhost:3000`).
+Porta: `3200 + PORT_OFFSET`. `NUXT_PUBLIC_API_BASE_URL` no `.env.local` aponta para a API (padrão: `http://localhost:3000`).
 
 Escopos de commit adicionais: `deps`.

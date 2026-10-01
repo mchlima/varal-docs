@@ -96,7 +96,7 @@ Domínios, sob kratinho.com.br enquanto não houver domínio próprio (no ar des
 | `api-web-varal.kratinho.com.br` | backend: API REST (`/api/v1`) e WebSocket (`/ws`) |
 
 - Os subdomínios usam hífen, não ponto (`admin-varal`, e não `admin.varal`), porque o certificado curinga `*.kratinho.com.br` só cobre um nível.
-- **RN-01.20** Os fronts chamam a API pelo host próprio dela (`API_BASE_URL=https://api-web-varal.kratinho.com.br`). A API libera CORS com credenciais só para as origens exatas `https://varal.kratinho.com.br` e `https://admin-varal.kratinho.com.br` (em desenvolvimento, as do `localhost`), e o Socket.IO usa a mesma lista. Nunca usa `*`.
+- **RN-01.20** Os fronts chamam a API pelo host próprio dela (`NUXT_PUBLIC_API_BASE_URL=https://api-web-varal.kratinho.com.br`, definido no build). A API libera CORS com credenciais só para as origens exatas `https://varal.kratinho.com.br` e `https://admin-varal.kratinho.com.br` (em desenvolvimento, as do `localhost`), e o Socket.IO usa a mesma lista. Nunca usa `*`.
 - Os três hosts são do mesmo site (`kratinho.com.br`), então os cookies `SameSite=Strict` da sessão continuam sendo enviados nas chamadas dos fronts à API. Os cookies são emitidos pela API sem atributo `Domain` (só valem no host da API); como os dois fronts usam o mesmo host de API, painel e admin se distinguem pelo nome do cookie (seção 7.2).
 - Os apps são SPAs (Nuxt com `ssr: false`); o `varal-panel-web` é instalável como PWA.
 - Cada repositório de código publica a própria imagem ou build; o `varal-infra` só referencia versões (tags), sem copiar código.
@@ -108,8 +108,8 @@ Domínios, sob kratinho.com.br enquanto não houver domínio próprio (no ar des
 Cada repositório é trabalhado por vários agentes ao mesmo tempo, cada um num git worktree em `.worktrees/` do próprio repositório (regras no `AGENTS.md`). O ambiente de desenvolvimento precisa permitir vários worktrees rodando juntos na mesma máquina.
 
 - **RN-01.06** Um Postgres de desenvolvimento compartilhado, definido no `varal-infra` (`dev/compose.yml`, projeto Compose fixo `varal-dev-db`, imagem `postgres:17`, a mesma versão da produção, porta 5432), atende todos os worktrees da API. Cada worktree do `varal-web-api` usa **um banco próprio** nesse servidor, chamado `varal_<slug-da-branch>`, e um banco de teste `varal_<slug>_test`, recriado a cada execução dos testes.
-- **RN-01.07** Cada worktree tem um `.env.local` (fora do git) com `WORKTREE_SLUG`, `PORT_OFFSET` e as variáveis do seu projeto: na API, a porta e o `DATABASE_URL`; nos apps, a porta e `API_BASE_URL`.
-- **RN-01.08** Portas: API `3000 + PORT_OFFSET`, `varal-panel-web` `3100 + PORT_OFFSET`, `varal-admin-web` `3200 + PORT_OFFSET`. O checkout principal usa `PORT_OFFSET=0`; cada worktree recebe o próximo valor livre entre 1 e 99. Por padrão, um app aponta para a API do checkout principal (`http://localhost:3000`); para testar contra a API de uma branch, ajusta-se `API_BASE_URL` no `.env.local`.
+- **RN-01.07** Cada worktree tem um `.env.local` (fora do git) com `WORKTREE_SLUG`, `PORT_OFFSET` e as variáveis do seu projeto: na API, a porta e o `DATABASE_URL`; nos apps, a porta e `NUXT_PUBLIC_API_BASE_URL`.
+- **RN-01.08** Portas: API `3000 + PORT_OFFSET`, `varal-panel-web` `3100 + PORT_OFFSET`, `varal-admin-web` `3200 + PORT_OFFSET`. O checkout principal usa `PORT_OFFSET=0`; cada worktree recebe o próximo valor livre entre 1 e 99. Por padrão, um app aponta para a API do checkout principal (`http://localhost:3000`); para testar contra a API de uma branch, ajusta-se `NUXT_PUBLIC_API_BASE_URL` no `.env.local`.
 - Cada repositório de código tem um script `scripts/worktree.sh`:
   - `new <tipo>/<descricao>`: cria o worktree a partir da `main`, escolhe um `PORT_OFFSET` livre, gera o `.env.local`, instala dependências e, na API, cria o banco e aplica migrations e seed;
   - `list`: mostra worktrees com branch e portas (e banco, na API);
