@@ -17,7 +17,7 @@ Fonte das decisões: documento [Varal — Escopo do MVP](https://claude.ai/code/
 | 07 | [Relatórios](07-relatorios.md) | Relatório do turno e histórico |
 | 08 | [Identidade visual](08-identidade-visual.md) | Cores, status, tipografia, regras de interface |
 
-Ordem sugerida de implementação: 01 → 03 → 04 → 05 → 06 → 07, com 02 em paralelo a partir de 03, e 08 aplicada desde a primeira tela.
+Ordem sugerida de implementação: 01 → 03 → 04 → 05 → 06 → 07, com 02 em paralelo a partir de 03, e 08 aplicada desde a primeira tela. O [plano de desenvolvimento](../plano-de-desenvolvimento.md) detalha fases, versões e escolhas técnicas.
 
 ## Formato de cada spec
 
