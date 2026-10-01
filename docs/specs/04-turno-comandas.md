@@ -28,7 +28,7 @@ Operar uma barraca durante um período de trabalho: abrir o turno, registrar com
 - **RN-04.04** Tipos: `direct_sale` (venda direta) e `contracted` (turno contratado). O tipo é escolhido na abertura e não muda depois.
 - **RN-04.05** Turno contratado exige um acordo com: nome do contratante, modalidade, valor combinado (centavos, opcional), limites (texto livre, opcional, ex.: "500 espetos" ou "das 18h às 23h"), quantidade combinada (inteiro, opcional, usada na comparação do relatório) e observação. Modalidades: `fixed_fee` (valor fixo), `per_quantity` (por quantidade), `consumption_billed` (contratante paga o consumo no final), `other`. No MVP o acordo é informativo: nada é calculado a partir dele além da comparação do relatório (spec 07).
 - **RN-04.06** Tabela de preços do turno: opcional, definida na abertura e editável enquanto o turno estiver aberto. Para cada produto listado, vale o preço do turno; para os demais, o preço do cardápio. Acréscimos de modificadores não mudam.
-- **RN-04.07** Fechar turno exige: nenhuma comanda em `open` ou `closing` e todos os caixas do turno fechados (spec 05). A API devolve a lista do que está pendente quando recusar.
+- **RN-04.07** Fechar turno exige: nenhuma comanda em `open` ou `closing` e todos os caixas do turno fechados (spec 05). A API recusa com `SHIFT_HAS_PENDING_ITEMS` e devolve nos detalhes a lista do que está pendente (comandas e, a partir da spec 05, caixas).
 - **RN-04.08** Turno fechado não aceita nenhuma alteração. Itens que ainda estiverem em etapas não finais no fechamento são levados à etapa final automaticamente, com registro na auditoria.
 
 ## 4. Comanda
@@ -49,7 +49,7 @@ Operar uma barraca durante um período de trabalho: abrir o turno, registrar com
 | `closing` | `paid` | Total pago igual ao total devido (spec 05) |
 | `closing` | `on_credit` | Pendurada no fiado (spec 06) |
 | `on_credit` | `settled` | Quitada (spec 06) |
-| `open` ou `closing` | `canceled` | Todos os itens cancelados e nenhum pagamento registrado |
+| `open` ou `closing` | `canceled` | Todos os itens cancelados e nenhum pagamento registrado (senão `TAB_HAS_ACTIVE_ITEMS`; a comanda não cancela os itens sozinha) |
 
 - **RN-04.13** Em `closing`, novos pedidos são recusados até reabrir.
 - **RN-04.14** Valores da comanda: subtotal = soma dos itens não cancelados (preço unitário + acréscimos dos modificadores, vezes a quantidade); total = subtotal − desconto (spec 05).
@@ -67,7 +67,7 @@ Operar uma barraca durante um período de trabalho: abrir o turno, registrar com
 
 - **RN-04.20** Avançar um item move para a próxima etapa do fluxo. Pode avançar quem tem acesso à estação em que o item está.
 - **RN-04.21** No balcão (`counter`), o colaborador também pode avançar itens que estejam na última etapa antes da final (no template: Pronto → Entregue), para registrar a entrega direto na comanda.
-- **RN-04.22** Voltar um item para a etapa anterior é permitido para quem pode avançá-lo, com registro na auditoria. Não se volta da etapa final.
+- **RN-04.22** Voltar um item para a etapa anterior é permitido para quem pode avançá-lo e também para quem tem acesso à estação da etapa anterior (quem avançou por engano consegue desfazer), com registro na auditoria. Não se volta da etapa final.
 - **RN-04.23** O item guarda quando entrou na etapa atual. Ele é considerado atrasado quando passou mais de `late_after_minutes` (configuração da unidade) desde o envio do pedido sem chegar à etapa final.
 - **RN-04.24** Avançar parte da quantidade: num item com quantidade maior que 1, quem avança pode escolher quantas unidades seguem (ex.: 2 de 3 espetos prontos); o padrão é todas. Avançar parte divide o item em duas linhas, como no cancelamento parcial (RN-04.26): uma linha nova, com a quantidade avançada, vai para a próxima etapa e aponta para a original em `split_from_id`; a original fica na etapa atual com o restante e mantém `stage_entered_at`. As duas linhas guardam a mesma cópia do vendido, e o total da comanda não muda. Voltar etapa (RN-04.22) vale para cada linha separadamente.
 
@@ -107,7 +107,7 @@ O "valor de um item" é `(unit_price_cents + soma de price_delta_cents) × quant
 | `GET /api/v1/units/{id}/shifts/current` | Turno aberto da unidade, com acordo e preços |
 | `PUT /api/v1/shifts/{id}/prices` | Atualiza a tabela de preços do turno |
 | `POST /api/v1/shifts/{id}/close` | Fecha turno (RN-04.07) |
-| `GET /api/v1/shifts/{id}/tabs?status=open,closing` | Varal: comandas do turno com totais e resumo dos itens |
+| `GET /api/v1/shifts/{id}/tabs?status=open,closing` | Varal: comandas do turno com totais e resumo dos itens (sem paginação: o varal precisa de todas) |
 | `POST /api/v1/shifts/{id}/tabs` | Abre comanda aberta (`customerName`) |
 | `POST /api/v1/shifts/{id}/tabs/pay-first` | Cria comanda paga antes com pedido e pagamentos em uma operação (spec 05) |
 | `GET /api/v1/tabs/{id}` | Comanda com pedidos, itens, pagamentos e totais |
@@ -127,6 +127,7 @@ Todas as rotas de escrita aceitam `Idempotency-Key` (spec 01). Mudanças de etap
 | Evento | Salas | Payload |
 | --- | --- | --- |
 | `shift.opened`, `shift.closed` | `unit` | turno |
+| `shift.updated` | `unit` | turno com a tabela de preços nova (os balcões recarregam os preços) |
 | `tab.created` | `unit` | comanda com totais |
 | `tab.updated` | `unit` | comanda com situação, totais e `version` |
 | `order.created` | `unit` e `station` de cada item | pedido com itens (cada estação recebe só os seus) |
