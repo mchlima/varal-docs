@@ -9,7 +9,7 @@ Criar a base sobre a qual todos os módulos são construídos: estrutura do repo
 **Dentro**
 
 - Repositórios separados para a API, o app dos clientes, o admin, a infraestrutura e a documentação.
-- Tudo em Docker: Docker Compose no desenvolvimento e no VPS, reaproveitando o NGINX e o PostgreSQL que já rodam em containers no VPS.
+- Tudo em Docker: Docker Compose no desenvolvimento e no VPS, reaproveitando o PostgreSQL e o proxy NGINX compartilhados do VPS.
 - Autenticação de dono, colaborador e admin da plataforma.
 - Redefinição de senha e convite por e-mail.
 - Auditoria de ações.
@@ -62,20 +62,26 @@ Não há pacote compartilhado. A API é a fonte única dos contratos e os public
 
 ## 4. Infraestrutura
 
-Definida no `varal-infra`. O VPS de produção (SV-GENERAL-00, Locaweb) já roda **NGINX e PostgreSQL em containers Docker**, compartilhados com outros projetos. O Varal não sobe NGINX nem PostgreSQL próprios em produção: usa os existentes.
+Definida no `varal-infra`. O VPS de produção (SV-GENERAL-00, Locaweb: Ubuntu 24.04, 2 vCPUs, 4 GB de RAM, 70 GB de SSD) é compartilhado com outros projetos do usuário. Estado verificado em 2026-10-01:
+
+- **PostgreSQL** já roda em Docker: container `postgres`, imagem `postgres:17`, Compose próprio em `/opt/postgres` (fora dos repositórios do Varal), volume externo `postgres_data` e rede Docker externa `postgres`. Os containers que entram nessa rede falam com ele em `postgres:5432`. A porta 5432 é publicada no host de propósito, para clientes externos. Configurado para a máquina compartilhada: `max_connections=50` e limite de 1,3 GB de memória.
+- **NGINX** está instalado **direto no host** (pacote do Ubuntu, 1.24, via systemd), sem nenhum site habilitado e sem escutar nas portas 80/443. Não há certbot nem certificados. Isso contraria a RN-01.14; ver a questão aberta na seção 16.
+
+Regras:
 
 - **RN-01.14** Tudo no VPS roda em Docker. Nada do Varal é instalado direto no sistema do VPS (nem Node, nem NGINX, nem PostgreSQL, nem cron do host); tarefas agendadas, como o backup, rodam em container.
-- **RN-01.15** O Varal entra no NGINX existente com arquivos de configuração próprios (um `server` por host), sem alterar a configuração dos outros projetos. O `varal-infra` guarda esses arquivos e descreve como instalá-los no container do NGINX e recarregá-lo.
-- **RN-01.16** No PostgreSQL existente, o Varal tem um banco `varal` e um usuário `varal` dono só desse banco, sem privilégio de superusuário. A API nunca conecta com o usuário `postgres`.
-- **RN-01.17** Os containers do Varal falam com o NGINX e o PostgreSQL por uma rede Docker compartilhada; a API não publica porta no host.
+- **RN-01.15** O Varal não sobe PostgreSQL nem proxy reverso próprios: usa os compartilhados do VPS. No proxy, entra com arquivos de configuração próprios (um `server` por host), sem alterar a configuração dos outros projetos; o `varal-infra` guarda esses arquivos e descreve como instalá-los e recarregar o proxy.
+- **RN-01.16** No PostgreSQL compartilhado, o Varal tem um banco `varal` e um usuário `varal` dono só desse banco, sem privilégio de superusuário. A API nunca conecta com o usuário `postgres`. Como as conexões são divididas entre projetos, o pool da API usa no máximo 10 conexões **(proposta)**.
+- **RN-01.17** A API entra na rede Docker externa `postgres` e na rede do proxy; não publica porta no host.
+- **Proxy compartilhado (proposta):** NGINX em container, no mesmo padrão do PostgreSQL (Compose próprio em `/opt/nginx`, rede Docker externa `proxy`, portas 80/443, certificados Let's Encrypt renovados por um container certbot), substituindo o NGINX do host, que hoje não serve nada. Como serve outros projetos, ele não é definido no `varal-infra`.
 
 | Serviço | Origem | Exposição |
 | --- | --- | --- |
-| `nginx` | **container existente no VPS** | Portas 80/443, termina HTTPS |
-| `api` | imagem do `varal-web-api`, no Compose do Varal | Rede Docker compartilhada com o NGINX, porta 3000 |
-| `panel` | build estático do `varal-panel-web`, servido pelo NGINX | Via NGINX |
-| `admin` | build estático do `varal-admin-web`, servido pelo NGINX | Via NGINX |
-| `postgres` | **container existente no VPS**; banco e usuário `varal` | Rede Docker compartilhada, sem porta pública |
+| proxy (`nginx`) | compartilhado no VPS (ver proposta acima) | Portas 80/443, termina HTTPS |
+| `api` | imagem do `varal-web-api`, no Compose do Varal | Redes `postgres` e `proxy`, porta 3000 interna |
+| `panel` | build estático do `varal-panel-web`, servido pelo proxy | Via proxy |
+| `admin` | build estático do `varal-admin-web`, servido pelo proxy | Via proxy |
+| `postgres` | container compartilhado `postgres` (`postgres:17`); banco e usuário `varal` | Rede `postgres` |
 | `backup` | container agendado no Compose do Varal | Nenhuma |
 
 Domínios **(proposta)**, sob kratinho.com.br enquanto não houver domínio próprio:
@@ -95,7 +101,7 @@ Domínios **(proposta)**, sob kratinho.com.br enquanto não houver domínio pró
 
 Cada repositório é trabalhado por vários agentes ao mesmo tempo, cada um num git worktree em `.worktrees/` do próprio repositório (regras no `AGENTS.md`). O ambiente de desenvolvimento precisa permitir vários worktrees rodando juntos na mesma máquina.
 
-- **RN-01.06** Um Postgres de desenvolvimento compartilhado, definido no `varal-infra` (`dev/compose.yml`, projeto Compose fixo `varal-dev-db`, porta 5432), atende todos os worktrees da API. Cada worktree do `varal-web-api` usa **um banco próprio** nesse servidor, chamado `varal_<slug-da-branch>`, e um banco de teste `varal_<slug>_test`, recriado a cada execução dos testes.
+- **RN-01.06** Um Postgres de desenvolvimento compartilhado, definido no `varal-infra` (`dev/compose.yml`, projeto Compose fixo `varal-dev-db`, imagem `postgres:17`, a mesma versão da produção, porta 5432), atende todos os worktrees da API. Cada worktree do `varal-web-api` usa **um banco próprio** nesse servidor, chamado `varal_<slug-da-branch>`, e um banco de teste `varal_<slug>_test`, recriado a cada execução dos testes.
 - **RN-01.07** Cada worktree tem um `.env.local` (fora do git) com `WORKTREE_SLUG`, `PORT_OFFSET` e as variáveis do seu projeto: na API, a porta e o `DATABASE_URL`; nos apps, a porta e `API_BASE_URL`.
 - **RN-01.08** Portas: API `3000 + PORT_OFFSET`, `varal-panel-web` `3100 + PORT_OFFSET`, `varal-admin-web` `3200 + PORT_OFFSET`. O checkout principal usa `PORT_OFFSET=0`; cada worktree recebe o próximo valor livre entre 1 e 99. Por padrão, um app aponta para a API do checkout principal (`http://localhost:3000`); para testar contra a API de uma branch, ajusta-se `API_BASE_URL` no `.env.local`.
 - Cada repositório de código tem um script `scripts/worktree.sh`:
@@ -364,5 +370,5 @@ Rotas em português, sem acentos, com hífen entre palavras. Parâmetros identif
 ## 16. Questões abertas
 
 - Destino do backup fora do VPS (ex.: bucket S3 compatível, outro servidor).
-- Detalhes do NGINX e do PostgreSQL existentes no VPS: nomes dos containers, rede Docker, versão do PostgreSQL, como os arquivos de configuração entram no NGINX (volume montado?) e como os certificados HTTPS são emitidos e renovados.
+- NGINX do VPS: hoje está no host, contrariando a RN-01.14. Confirmar a proposta de trocá-lo por um NGINX compartilhado em container (`/opt/nginx`, rede `proxy`, certbot em container). A troca é uma ação no VPS e só acontece com pedido do usuário.
 - Confirmar as propostas técnicas: Prisma, zod, pg-boss, JWT com renovação em cookie, subdomínios.
