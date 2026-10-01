@@ -55,7 +55,7 @@ Versões estáveis em 2026-10-01. Fixe a versão maior (`^`) no `package.json`, 
 - **Cliente da API:** `pnpm gen:api` gera os tipos com openapi-typescript; um plugin cria o cliente openapi-fetch com `credentials: 'include'`. Um middleware renova a sessão em 401 com uma única renovação compartilhada entre requisições simultâneas (sem passar pelo próprio middleware, para não entrar em loop).
 - **Componentes:**
   - **Painel:** Tailwind 4 + Reka UI (só primitivas acessíveis: diálogo, aviso, seleção) e componentes próprios. Botões de 56 a 64 px, texto grande, alto contraste, sem visual genérico.
-  - **Admin:** Nuxt UI 4 com as cores da spec 08 (tabelas, formulários e modais prontos rendem muito no admin). Desligados `@nuxt/fonts` e o modo de cor automático.
+  - **Admin:** Nuxt UI 4, que traz tabelas, formulários e modais prontos. A identidade visual tem de ser equivalente à do painel (decisão de 2026-10-01): mesmos tokens de cor, status, tipografia e logo da spec 08, aplicados pelo tema do Nuxt UI (`app.config` e variáveis `--ui-*`), sem o visual padrão da biblioteca. O `@nuxt/fonts` e o modo de cor automático ficam desligados.
 - **Logo e ícones:** copiados de `varal-docs/docs/brand/` (spec 08, RN-08.01).
 - **Estado:** Pinia para sessão, unidade atual e fila; VueUse para rede, armazenamento e tela sempre acesa na cozinha (`useWakeLock`). Sem i18n: textos em pt-BR num módulo próprio e `Intl` para moeda e data.
 
@@ -74,11 +74,11 @@ Versões estáveis em 2026-10-01. Fixe a versão maior (`^`) no `package.json`, 
 - **Título do PR** checado por action (Conventional Commits). No plano free o check não bloqueia o merge; serve de aviso.
 - **Versões:** release-please em cada repositório de código. Ele mantém um PR de release com versão e changelog; o merge desse PR cria a tag, e a tag dispara o deploy. Assim todo deploy passa por um merge explícito.
 - **Imagem da API** no GitHub Container Registry, construída em várias etapas sobre `node:22-alpine` (o Prisma 7 não depende mais do motor em Rust). Tags `sha-<curto>` e `vX.Y.Z`; produção sempre fixa a versão.
-- **Deploy pelo GitHub Actions via SSH**, com um usuário `deploy` no VPS cuja chave só pode rodar o script de deploy do `varal-infra`:
+- **Deploy (a decidir antes da fase 2).** Proposta: GitHub Actions via SSH, com um usuário `deploy` no VPS cuja chave só pode rodar o script de deploy do `varal-infra`. O script é o mesmo se o deploy for disparado à mão:
   - **API:** `deploy.sh api vX.Y.Z` baixa a imagem, roda `prisma migrate deploy` num container temporário e só então troca o container `varal-api`. Migrations seguem o padrão expandir e depois contrair, para a versão anterior continuar funcionando durante a troca.
   - **Apps:** o build vai por rsync para `/opt/nginx/html/<app>/releases/<versão>`, e um link `current` troca de versão de uma vez. Voltar versão é trocar o link.
   - **Segredos:** os de deploy ficam nos secrets do GitHub; os da aplicação ficam num `.env` no VPS (permissão 600), fora do git.
-- **Dependências:** Renovate (gratuito em repositório privado), agrupado e semanal, para não gastar minutos de CI.
+- **Dependências:** atualização automática a decidir (seção 6).
 
 ## 3. Fases
 
@@ -94,7 +94,7 @@ Base de todos os repositórios, sem regra de negócio.
 | `varal-web-api` | NestJS 12, TypeScript estrito, ESLint e Prettier, Vitest com SWC, Prisma 7 configurado, endpoint de saúde, `openapi.json` gerado, `.env.example`, `scripts/worktree.sh` (RN-01.06 a 01.08), CI |
 | `varal-panel-web` | Nuxt 4 SPA, Tailwind 4, tokens e fontes da spec 08, logo e favicon, `pnpm gen:api`, `scripts/worktree.sh`, CI |
 | `varal-admin-web` | O mesmo, com Nuxt UI 4 |
-| Todos | Action de título de PR, release-please, Renovate |
+| Todos | Action de título de PR, release-please |
 
 Critério: CA-01.01 (cada worktree sobe o projeto rodando). O seed da API vem na fase 1.
 
@@ -115,8 +115,8 @@ Critérios: CA-01.01 a 01.06, 01.08, 01.09 e 01.11.
 - **Infraestrutura:**
   - Compose de produção com `varal-api`;
   - banco e usuário `varal` (RN-01.16);
-  - usuário `deploy` e scripts de deploy;
-  - workflows de imagem e de deploy.
+  - script de deploy e workflow de imagem;
+  - forma de disparar o deploy (seção 6).
 - **Primeiro deploy** com a página provisória substituída pelos apps reais. Fazer isso cedo tira o risco do fim do projeto.
 
 Critérios: CA-01.07, 01.12, 01.13, 01.14 e 01.15.
@@ -193,13 +193,18 @@ Fase 0 ─► Fase 1 ─► Fase 2 ─┬─► Fase 4 ─► Fase 5 ─► Fase
 | Chave de deploy com acesso amplo ao VPS | Usuário `deploy` limitado ao script de deploy |
 | PR fora do padrão no plano free | Action de título como aviso e regra dos agentes |
 | Migration destrutiva sem backup | Padrão expandir/contrair; `pg_dump` manual antes de migrations destrutivas, enquanto não houver backup |
-| Minutos de CI no plano free | Cache, cancelamento de execuções antigas, CI só para código, Renovate semanal |
+| Minutos de CI no plano free | Cache, cancelamento de execuções antigas, CI só para código |
 
 ## 6. Para decidir
 
 Pontos com recomendação. Até a confirmação, valem as recomendações.
 
-1. **Componentes do admin:** Nuxt UI 4 (recomendado) ou o mesmo caminho do painel (Tailwind + Reka UI).
-2. **Row-Level Security** no Postgres como segunda camada do multi-tenant: depois do piloto (recomendado) ou já na fundação.
-3. **Deploy:** pelo GitHub Actions com usuário `deploy` restrito (recomendado) ou script manual rodado daqui.
-4. **Dependências:** Renovate (recomendado) ou Dependabot.
+Decididos em 2026-10-01:
+
+- **Componentes do admin:** Nuxt UI 4, com identidade visual equivalente à do painel (seção 2.2).
+- **Row-Level Security** no Postgres como segunda camada do multi-tenant: depois do piloto.
+
+Pendentes:
+
+1. **Deploy:** pelo GitHub Actions com usuário `deploy` restrito ou por script rodado à mão. Decidir antes da fase 2.
+2. **Atualização de dependências:** Renovate, Dependabot ou nenhum por enquanto.
