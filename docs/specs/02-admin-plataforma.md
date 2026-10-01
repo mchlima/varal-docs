@@ -31,9 +31,9 @@ Dar à equipe do Varal um painel próprio, separado dos clientes, para criar e a
 - **RN-02.01** Toda rota do admin exige uma permissão do catálogo. Sem a permissão, a API responde 403 e a interface esconde a ação.
 - **RN-02.02** Permissão efetiva = união das permissões dos papéis do usuário com as permissões avulsas dele. Não há negação no MVP.
 - **RN-02.03** O catálogo de permissões é fixo no código da API e publicado no OpenAPI (enum `Permission`), de onde o `varal-admin-web` o lê. Uma permissão nova entra por deploy; papéis e atribuições são dados.
-- **RN-02.04** Os papéis do sistema (`is_system = true`) vêm do seed e não podem ser excluídos. O papel Super admin tem sempre todas as permissões do catálogo, inclusive as que forem criadas depois, e não pode ser editado.
-- **RN-02.05** Sempre existe pelo menos um usuário ativo com o papel Super admin. A API recusa desativar, remover o papel ou excluir o último.
-- **RN-02.06** Um usuário não pode alterar os próprios papéis nem as próprias permissões avulsas.
+- **RN-02.04** Os papéis do sistema (`is_system = true`) vêm do seed e não podem ser excluídos. O papel Super admin tem sempre todas as permissões do catálogo, inclusive as que forem criadas depois, e não pode ser editado. Os demais papéis do sistema mantêm o nome, mas descrição e permissões podem mudar. Cada papel do sistema é identificado por `system_key`.
+- **RN-02.05** Sempre existe pelo menos um usuário ativo com o papel Super admin. A API recusa desativar ou remover o papel do último (`LAST_SUPER_ADMIN`). Não há exclusão de usuário do admin, só desativação. O primeiro admin é criado por um comando de linha na API (`create-platform-admin`), que lhe dá Super admin quando ainda não há nenhum ativo.
+- **RN-02.06** Um usuário não pode alterar os próprios papéis nem as próprias permissões avulsas, nem desativar a si mesmo.
 - **RN-02.07** Papéis personalizados podem ser criados, renomeados, ter permissões alteradas e ser excluídos (se nenhum usuário os tiver).
 - **RN-02.08** Mudanças de papel ou permissão valem na próxima requisição do usuário afetado.
 
@@ -59,7 +59,7 @@ Dar à equipe do Varal um painel próprio, separado dos clientes, para criar e a
 
 - **RN-02.09** Criar organização exige: nome da organização, nome da primeira unidade, nome e e-mail do dono. Na mesma transação são criados a organização (com `access_code`), a unidade com o template padrão de estações e etapas (spec 03), o usuário dono sem senha e o convite por e-mail.
 - **RN-02.10** O e-mail do dono não pode já existir em outra organização.
-- **RN-02.11** Situações da assinatura: `pilot`, `active`, `suspended`, `canceled`. Toda mudança exige um motivo, que vai para a auditoria.
+- **RN-02.11** Situações da assinatura: `pilot`, `active`, `suspended`, `canceled`. Toda mudança exige um motivo, que vai para a auditoria (e fica guardado na organização em `suspended` e `canceled`). Suspender só a partir de `pilot` ou `active`; reativar a partir de `suspended` ou `canceled`; pedir a situação atual responde 409. Na criação, a situação é escolhida (padrão `active`).
 - **RN-02.12** Efeitos de `suspended` e `canceled`: não é possível abrir turno; turnos abertos podem ser operados até o fechamento; o painel do dono mostra uma faixa explicando a situação. Reativar volta a `active` ou `pilot`.
 - Detalhe da organização mostra: situação, data de criação, dono (com situação do convite), unidades, número de colaboradores ativos, últimos 10 turnos, último acesso de qualquer usuário, comunicados não lidos.
 
@@ -67,8 +67,8 @@ Dar à equipe do Varal um painel próprio, separado dos clientes, para criar e a
 
 - **RN-02.13** Um comunicado tem título (até 80 caracteres), texto (markdown simples, até 2.000 caracteres), público e data de publicação.
 - **RN-02.14** Públicos possíveis: todas as organizações; organizações em uma ou mais situações de assinatura; organizações escolhidas uma a uma.
-- **RN-02.15** Situações do comunicado: `draft`, `scheduled`, `published`, `archived`. Um comunicado agendado é publicado automaticamente na data marcada. Depois de publicado, só pode ser arquivado; o texto não muda.
-- **RN-02.16** No painel do dono, comunicados publicados e não lidos aparecem numa faixa no topo; o dono abre, lê e marca como lido. A leitura fica registrada por usuário.
+- **RN-02.15** Situações do comunicado: `draft`, `scheduled`, `published`, `archived`. Um comunicado agendado é publicado automaticamente na data marcada. Depois de publicado, só pode ser arquivado; o texto não muda. O comunicado nasce como rascunho; publicar aceita uma data futura (`scheduled`), e ele aparece para o dono a partir dela. O público "por situação" é avaliado no momento da leitura.
+- **RN-02.16** No painel do dono, comunicados publicados e não lidos aparecem numa faixa no topo; o dono abre, lê e marca como lido. A leitura fica registrada por usuário. Leituras feitas durante o "entrar como" não são registradas.
 - O admin vê, para cada comunicado, quantos donos do público já leram.
 
 ## 6. Métricas
@@ -85,7 +85,7 @@ Painel com filtro de período (padrão: últimos 30 dias), em horário de Brasí
 | Ticket médio | Valor vendido / comandas |
 | Uso por organização | Tabela com turnos, comandas, valor vendido e último acesso, ordenável |
 
-As métricas usam só dados já existentes; não há tabela própria no MVP.
+As métricas usam só dados já existentes; não há tabela própria no MVP. Turnos, comandas e valores aparecem zerados até as specs 04 a 06 estarem implementadas. O último acesso vem das sessões, que são apagadas 30 dias depois de vencidas.
 
 ## 7. Entrar como
 
@@ -93,7 +93,10 @@ As métricas usam só dados já existentes; não há tabela própria no MVP.
 - **RN-02.18** No MVP o acesso é total: o admin age no app `varal-panel-web` com as mesmas permissões do dono daquela organização.
 - **RN-02.19** Durante a sessão, uma faixa fixa e destacada no topo do app mostra "Você está acessando como {organização} — {admin}" e o botão "Encerrar acesso".
 - **RN-02.20** Toda ação feita na sessão grava na auditoria o ator como o dono e `impersonator_id` com o admin, mais o id da sessão de "entrar como".
-- **RN-02.21** A sessão é aberta num cookie próprio do app `varal-panel-web`, emitido a partir do admin; ela não dá acesso a outras organizações nem ao admin.
+- **RN-02.21** A sessão é aberta num cookie próprio do app `varal-panel-web`, emitido a partir do admin; ela não dá acesso a outras organizações nem ao admin. Fluxo:
+  1. `POST /admin/impersonations` cria a sessão (60 min) e devolve um link `{painel}/entrar-como#token=...`, de uso único, válido por 2 minutos, guardado só como hash.
+  2. A página `/entrar-como` do painel troca o token por uma sessão do app (`POST /auth/impersonation`), e a API exige que o mesmo navegador tenha a sessão do admin que gerou o link: um link vazado não funciona em outro navegador.
+  3. A sessão do app nunca passa do fim do "entrar como". Encerrar pelo admin ou pelo "Encerrar acesso" no app derruba a sessão e o tempo real na hora. Trocar a senha do dono durante o acesso é recusado.
 - **RN-02.22** O dono vê, no próprio painel, a lista de acessos de suporte feitos na conta dele (admin, motivo, início e fim).
 
 ## 8. E-mails e auditoria
@@ -105,7 +108,7 @@ As métricas usam só dados já existentes; não há tabela própria no MVP.
 
 **platform_admins**: `name`, `email` (único), `password_hash`, `active`, `last_login_at`.
 
-**roles**: `name` (único), `description`, `is_system bool`.
+**roles**: `name` (único), `description`, `is_system bool`, `system_key` (nos papéis do sistema).
 
 **role_permissions**: `role_id`, `permission` (chave do catálogo). Único por par.
 
@@ -117,13 +120,13 @@ As métricas usam só dados já existentes; não há tabela própria no MVP.
 
 **announcement_targets**: `announcement_id`, `organization_id` (só para `selected`).
 
-**announcement_reads**: `announcement_id`, `user_id`, `read_at`. Único por par.
+**announcement_reads**: `announcement_id`, `organization_id`, `user_id`, `read_at`. Único por par.
 
-**impersonation_sessions**: `platform_admin_id`, `organization_id`, `reason`, `started_at`, `expires_at`, `ended_at`, `ended_by` (`admin`, `expired`).
+**impersonation_sessions**: `platform_admin_id`, `organization_id`, `owner_id`, `reason`, `started_at`, `expires_at`, `ended_at`, `ended_by` (`admin`, `expired`), e o hash e a validade do link de troca. `audit_logs` ganha `impersonation_id`.
 
 ## 10. API
 
-Todas sob `/api/v1/admin`, com a permissão exigida entre colchetes.
+Todas sob `/api/v1/admin`, com a permissão exigida entre colchetes. As permissões também aparecem no OpenAPI (`x-permissions`). Escritas do admin não usam `Idempotency-Key`.
 
 | Método e rota | Permissão |
 | --- | --- |
@@ -131,6 +134,7 @@ Todas sob `/api/v1/admin`, com a permissão exigida entre colchetes.
 | `POST /users` (convite) | `admin.users:manage` |
 | `PATCH /users/{id}` (nome, ativo) | `admin.users:manage` |
 | `PUT /users/{id}/roles`, `PUT /users/{id}/permissions` | `admin.users:manage` |
+| `POST /users/{id}/password-link` (link de redefinição) | `admin.users:manage` |
 | `GET /roles`, `POST /roles`, `PATCH /roles/{id}`, `DELETE /roles/{id}` | `admin.roles:manage` (leitura também com `admin.users:manage`) |
 | `GET /permissions` (catálogo) | qualquer admin |
 | `GET /organizations`, `GET /organizations/{id}` | `organizations:read` |
@@ -142,7 +146,7 @@ Todas sob `/api/v1/admin`, com a permissão exigida entre colchetes.
 | `GET /announcements`, `GET /announcements/{id}` | `announcements:read` |
 | `POST /announcements`, `PATCH /announcements/{id}`, `POST /announcements/{id}/publish`, `/archive` | `announcements:manage` |
 | `GET /metrics/overview`, `GET /metrics/organizations` | `metrics:read` |
-| `POST /impersonations` | `impersonation:use` |
+| `POST /impersonations`, `GET /impersonations` | `impersonation:use` |
 | `POST /impersonations/{id}/end` | o próprio admin da sessão |
 | `GET /emails`, `GET /emails/usage` | `emails:read` |
 | `GET /audit-logs` | `audit:read` |
@@ -154,6 +158,7 @@ No `varal-panel-web` (lado do dono):
 | `GET /api/v1/announcements/unread` | Comunicados publicados, do público do dono, ainda não lidos |
 | `POST /api/v1/announcements/{id}/read` | Marca como lido |
 | `GET /api/v1/support-access` | Acessos de suporte feitos na organização |
+| `POST /api/v1/auth/impersonation` | Troca o link do "entrar como" por uma sessão do app (RN-02.21) |
 
 ## 11. Telas
 

@@ -357,6 +357,7 @@ Rotas em português, sem acentos, com hífen entre palavras. Parâmetros identif
 | `/painel/relatorios` | Histórico | 07 |
 | `/painel/relatorios/turnos/{id}` | Relatório do turno | 07 |
 | `/painel/acessos-de-suporte` | Acessos de "entrar como" na conta | 02 |
+| `/entrar-como` | Troca o link do "entrar como" por uma sessão (token no fragmento) | 02 |
 
 **App `varal-admin-web`**
 
