@@ -9,7 +9,7 @@ Criar a base sobre a qual todos os módulos são construídos: estrutura do repo
 **Dentro**
 
 - Repositórios separados para a API, o app dos clientes, o admin, a infraestrutura e a documentação.
-- Docker Compose para desenvolvimento e produção no VPS, com NGINX.
+- Tudo em Docker: Docker Compose no desenvolvimento e no VPS, reaproveitando o NGINX e o PostgreSQL que já rodam em containers no VPS.
 - Autenticação de dono, colaborador e admin da plataforma.
 - Redefinição de senha e convite por e-mail.
 - Auditoria de ações.
@@ -33,7 +33,7 @@ Cada parte do sistema tem o próprio repositório no GitHub (`mchlima/...`):
 | `varal-web-api` | API REST (`/api/v1`) e WebSocket (`/ws`), banco e migrations | NestJS, PostgreSQL |
 | `varal-panel-web` | App dos clientes: balcão, estações, caixa e painel do dono (PWA) | Nuxt |
 | `varal-admin-web` | Admin da plataforma | Nuxt |
-| `varal-infra` | Docker Compose de produção, NGINX, backup e Postgres de desenvolvimento | Docker, NGINX |
+| `varal-infra` | Docker Compose de produção, configuração do Varal no NGINX existente, backup e Postgres de desenvolvimento | Docker, NGINX |
 
 Na máquina de desenvolvimento, os repositórios ficam lado a lado numa pasta comum, para que agentes e scripts enxerguem os vizinhos por caminho relativo:
 
@@ -62,15 +62,21 @@ Não há pacote compartilhado. A API é a fonte única dos contratos e os public
 
 ## 4. Infraestrutura
 
-Definida no `varal-infra`.
+Definida no `varal-infra`. O VPS de produção (SV-GENERAL-00, Locaweb) já roda **NGINX e PostgreSQL em containers Docker**, compartilhados com outros projetos. O Varal não sobe NGINX nem PostgreSQL próprios em produção: usa os existentes.
+
+- **RN-01.14** Tudo no VPS roda em Docker. Nada do Varal é instalado direto no sistema do VPS (nem Node, nem NGINX, nem PostgreSQL, nem cron do host); tarefas agendadas, como o backup, rodam em container.
+- **RN-01.15** O Varal entra no NGINX existente com arquivos de configuração próprios (um `server` por host), sem alterar a configuração dos outros projetos. O `varal-infra` guarda esses arquivos e descreve como instalá-los no container do NGINX e recarregá-lo.
+- **RN-01.16** No PostgreSQL existente, o Varal tem um banco `varal` e um usuário `varal` dono só desse banco, sem privilégio de superusuário. A API nunca conecta com o usuário `postgres`.
+- **RN-01.17** Os containers do Varal falam com o NGINX e o PostgreSQL por uma rede Docker compartilhada; a API não publica porta no host.
 
 | Serviço | Origem | Exposição |
 | --- | --- | --- |
-| `nginx` | NGINX | Portas 80/443, termina HTTPS |
-| `api` | imagem do `varal-web-api` | Interna, porta 3000 |
+| `nginx` | **container existente no VPS** | Portas 80/443, termina HTTPS |
+| `api` | imagem do `varal-web-api`, no Compose do Varal | Rede Docker compartilhada com o NGINX, porta 3000 |
 | `panel` | build estático do `varal-panel-web`, servido pelo NGINX | Via NGINX |
 | `admin` | build estático do `varal-admin-web`, servido pelo NGINX | Via NGINX |
-| `postgres` | PostgreSQL 16 | Interna, volume persistente |
+| `postgres` | **container existente no VPS**; banco e usuário `varal` | Rede Docker compartilhada, sem porta pública |
+| `backup` | container agendado no Compose do Varal | Nenhuma |
 
 Domínios **(proposta)**, sob kratinho.com.br enquanto não houver domínio próprio:
 
@@ -82,7 +88,7 @@ Domínios **(proposta)**, sob kratinho.com.br enquanto não houver domínio pró
 - API e app no mesmo host evitam CORS e permitem cookies `SameSite=Strict`.
 - Os apps são SPAs (Nuxt com `ssr: false`); o `varal-panel-web` é instalável como PWA.
 - Cada repositório de código publica a própria imagem ou build; o `varal-infra` só referencia versões (tags), sem copiar código.
-- Backup: `pg_dump` diário às 04:00 (horário de Brasília), comprimido, enviado para armazenamento fora do VPS, com retenção de 30 dias. O destino é questão aberta.
+- Backup: `pg_dump` do banco `varal` diário às 04:00 (horário de Brasília), rodando em container, comprimido, enviado para armazenamento fora do VPS, com retenção de 30 dias. O destino é questão aberta.
 - Variáveis sensíveis (SMTP, segredos de token, banco) só em variáveis de ambiente, nunca em repositório. Cada repositório tem um `.env.example` com as suas.
 
 ### 4.1 Desenvolvimento com vários agentes em paralelo
@@ -353,8 +359,10 @@ Rotas em português, sem acentos, com hífen entre palavras. Parâmetros identif
 - **CA-01.10** O backup diário gera um arquivo restaurável (teste de restauração documentado em `varal-infra`).
 - **CA-01.11** A CI do `varal-web-api` falha quando o `openapi.json` commitado difere do gerado pelo código.
 - **CA-01.12** Os apps compilam com os tipos gerados do `openapi.json` atual; um campo removido da API quebra a compilação do app que o usa.
+- **CA-01.13** Em produção, nenhum processo do Varal roda fora de Docker; o Compose do Varal não define serviços `nginx` nem `postgres`; a API conecta com o usuário `varal`.
 
 ## 16. Questões abertas
 
 - Destino do backup fora do VPS (ex.: bucket S3 compatível, outro servidor).
+- Detalhes do NGINX e do PostgreSQL existentes no VPS: nomes dos containers, rede Docker, versão do PostgreSQL, como os arquivos de configuração entram no NGINX (volume montado?) e como os certificados HTTPS são emitidos e renovados.
 - Confirmar as propostas técnicas: Prisma, zod, pg-boss, JWT com renovação em cookie, subdomínios.
