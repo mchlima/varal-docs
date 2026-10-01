@@ -133,8 +133,8 @@ Cada repositório é trabalhado por vários agentes ao mesmo tempo, cada um num 
 
 - Toda tabela com dados de cliente tem `organization_id NOT NULL` e índice que começa por ela.
 - A organização da requisição vem do token, nunca de parâmetro enviado pelo cliente.
-- Um contexto por requisição (AsyncLocalStorage) guarda `organizationId`, `actor` e `deviceId`. Uma extensão do ORM aplica o filtro `organization_id` automaticamente em leituras e escritas de tabelas de tenant **(proposta)**.
-- Rotas do admin da plataforma usam um cliente de banco sem esse filtro, disponível só no módulo do admin.
+- Um contexto por requisição (AsyncLocalStorage) guarda `organizationId`, `actor` e `deviceId`. Uma extensão do Prisma aplica o filtro `organization_id` automaticamente em leituras e escritas de tabelas de tenant e recusa a consulta (erro interno, nunca dado de outra organização) quando o contexto não tem organização ou quando a escrita traz o id de outra. Não cobre SQL cru (`$queryRaw`) nem escritas aninhadas: nesses casos o filtro é feito à mão e revisado no PR.
+- Rotas do admin da plataforma, a autenticação e os jobs usam um cliente de banco sem esse filtro; uma regra de lint impede importá-lo em outros módulos.
 - Testes automatizados garantem que um usuário da organização A não lê nem altera nada da organização B em nenhum endpoint (teste de isolamento obrigatório para cada novo recurso).
 
 **RN-01.01** Uma organização com situação `suspended` ou `canceled` não abre turnos novos; turnos já abertos podem ser fechados.
@@ -281,15 +281,15 @@ No MVP cada organização tem um dono. A tabela já permite mais de um.
 | `station_ids` | uuid[] | estações liberadas na unidade |
 | `can_operate_cash` | bool | pode abrir, movimentar e fechar caixa |
 
-**sessions**: `subject_type` (`owner`, `staff`, `platform_admin`), `subject_id`, `device_id`, `refresh_token_hash`, `expires_at`, `revoked_at`, `last_used_at`, `user_agent`, `ip`, `impersonation_id` (opcional, spec 02).
+**sessions**: `organization_id` (nulo para admins da plataforma), `subject_type` (`owner`, `staff`, `platform_admin`), `subject_id`, `device_id`, `refresh_token_hash`, `expires_at`, `revoked_at`, `last_used_at`, `user_agent`, `ip`, `impersonation_id` (opcional, spec 02).
 
 **password_tokens**: `subject_type`, `subject_id`, `purpose` (`invite`, `reset`), `token_hash`, `expires_at`, `used_at`.
 
-**audit_logs**: `organization_id` (nulo para ações só da plataforma), `actor_type`, `actor_id`, `impersonator_id` (opcional), `action`, `entity_type`, `entity_id`, `changes jsonb`, `device_id`, `ip`, `created_at`. Índices por `(organization_id, created_at)` e `(entity_type, entity_id)`.
+**audit_logs**: `organization_id` (nulo para ações só da plataforma), `actor_type`, `actor_id`, `impersonator_id` (opcional), `action`, `entity_type`, `entity_id`, `changes jsonb`, `device_id`, `ip`, `request_id` (correlação com o cabeçalho `X-Request-Id`), `created_at`. Sem `updated_at`: a tabela é somente inserção, garantida por trigger no banco. Índices por `(organization_id, created_at)` e `(entity_type, entity_id)`.
 
 **email_logs**: `organization_id` (opcional), `to`, `type`, `status` (`queued`, `sent`, `failed`), `error`, `sent_at`.
 
-**idempotency_keys**: `key`, `subject_id`, `request_hash`, `response jsonb`, `status_code`, `expires_at`.
+**idempotency_keys**: `key`, `organization_id` (opcional), `subject_id`, `request_hash`, `status` (`in_progress`, `completed`), `locked_at`, `response jsonb`, `status_code`, `expires_at`. Uma tentativa `in_progress` abandonada por mais de 60 s pode ser retomada; respostas 5xx não são guardadas.
 
 ## 13. API
 
