@@ -97,6 +97,7 @@ Cada repositório é trabalhado por vários agentes ao mesmo tempo, cada um num 
   - `list`: mostra worktrees com branch e portas (e banco, na API);
   - `remove <nome>`: remove o worktree, recusando se houver alterações sem commit; na API, apaga também o banco do worktree.
 - Nenhum script pode apagar bancos, volumes ou containers que não sejam do próprio worktree.
+- **RN-01.13** Todo repositório tem os git hooks de bloqueio da `main` em `.githooks/` e o hook do Claude Code em `.claude/`. O `scripts/worktree.sh new` falha se o clone não tiver `core.hooksPath` apontando para `.githooks`, mostrando o comando para ativar.
 
 ## 5. Convenções da API
 
