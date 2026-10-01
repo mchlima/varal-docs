@@ -194,11 +194,12 @@ Toda ação que cria, altera, cancela ou remove dado relevante grava uma linha e
 ## 9. E-mail
 
 - Envio via SMTP Locaweb com nodemailer, remetente fixo `Varal <nao-responda@kratinho.com.br>`.
-- **RN-01.21** O endereço `nao-responda@kratinho.com.br` não recebe e-mail: no Cloudflare Email Routing (MX do domínio no Cloudflare), a regra desse endereço descarta as mensagens (ação *drop*). Respostas e avisos de devolução enviados a ele se perdem, por isso todo e-mail diz no rodapé que não deve ser respondido e indica onde pedir ajuda.
-- **RN-01.22** Autenticação do domínio na zona do Cloudflare, sem proxy:
-  - **SPF**: um único registro TXT em `kratinho.com.br` que autoriza ao mesmo tempo o Cloudflare Email Routing (`include:_spf.mx.cloudflare.net`) e o SMTP Locaweb (o `include` indicado no painel da Locaweb). Dois registros SPF invalidam os dois.
-  - **DKIM**: o registro fornecido pelo painel do SMTP Locaweb, ao lado do DKIM do Cloudflare (`cf2024-1._domainkey`), que já existe.
-  - **DMARC**: registro em `_dmarc.kratinho.com.br`, começando em `p=none` para observar e depois endurecendo para `quarantine`.
+- **RN-01.21** O endereço `nao-responda@kratinho.com.br` não recebe e-mail: no Cloudflare Email Routing (MX do domínio no Cloudflare), a regra desse endereço descarta as mensagens (ação *drop*). Respostas enviadas a ele se perdem (as devoluções vão para o Return Path, RN-01.22), por isso todo e-mail diz no rodapé que não deve ser respondido e indica onde pedir ajuda.
+- **RN-01.22** Autenticação do e-mail, configurada em 2026-10-01 (registros na zona do Cloudflare, todos sem proxy):
+  - **Return Path** em `bounce.kratinho.com.br` (CNAME para `smtplw.com`): é o envelope dos envios do SMTP Locaweb. O SPF passa nesse subdomínio (`include:_spf.smtplw.com`) e fica alinhado com `kratinho.com.br` para o DMARC. As devoluções vão para a Locaweb, não para o `nao-responda@`.
+  - **SPF** do domínio principal: continua só com o Cloudflare Email Routing (`include:_spf.mx.cloudflare.net`). Não acrescente a Locaweb nele.
+  - **DKIM** da Locaweb em `smtp._domainkey.bounce.kratinho.com.br`; o DMARC de `bounce` é um CNAME para `_dmarc.smtpdlv.com.br`, mantido pela Locaweb.
+  - **DMARC** do domínio em `_dmarc.kratinho.com.br`, gerenciado pelo DMARC Management do Cloudflare (relatórios no painel do Cloudflare). Começa em `p=none`; passa a `quarantine` depois de algumas semanas sem falhas nos relatórios.
 - Envio assíncrono por fila no próprio PostgreSQL (**pg-boss, proposta**), para que lentidão do SMTP não trave a requisição. Até 3 tentativas com espera crescente.
 - Cada envio grava `email_logs` (destinatário, tipo, situação, erro, datas).
 - **RN-01.04** Limite do plano: 10.000 envios por mês. Ao atingir 80% (8.000), o admin da plataforma vê um alerta no painel. Ao atingir 100%, envios não críticos param; convites e redefinições continuam e o alerta muda para crítico.
@@ -383,7 +384,7 @@ Rotas em português, sem acentos, com hífen entre palavras. Parâmetros identif
 
 ## 16. Questões abertas
 
-- E-mail: registros SPF (com o `include` do SMTP Locaweb), DKIM do SMTP Locaweb e DMARC ainda não criados (verificado em 2026-10-01). Sem eles, os e-mails de convite e de redefinição de senha tendem a cair no spam.
+- E-mail: quando endurecer o DMARC de `p=none` para `quarantine` (depende dos relatórios do Cloudflare).
 - Destino do backup fora do VPS (ex.: bucket S3 compatível, outro servidor).
 - Restringir as portas 80/443 do VPS às faixas de IP do Cloudflare. Hoje elas aceitam qualquer origem, e a regra afetaria também os outros projetos do VPS.
 - Confirmar as propostas técnicas: Prisma, zod, pg-boss, JWT com renovação em cookie.
