@@ -30,7 +30,7 @@ Dar à equipe do Varal um painel próprio, separado dos clientes, para criar e a
 
 - **RN-02.01** Toda rota do admin exige uma permissão do catálogo. Sem a permissão, a API responde 403 e a interface esconde a ação.
 - **RN-02.02** Permissão efetiva = união das permissões dos papéis do usuário com as permissões avulsas dele. Não há negação no MVP.
-- **RN-02.03** O catálogo de permissões é fixo no código (`packages/shared`). Uma permissão nova entra por deploy; papéis e atribuições são dados.
+- **RN-02.03** O catálogo de permissões é fixo no código da API e publicado no OpenAPI (enum `Permission`), de onde o `varal-admin-web` o lê. Uma permissão nova entra por deploy; papéis e atribuições são dados.
 - **RN-02.04** Os papéis do sistema (`is_system = true`) vêm do seed e não podem ser excluídos. O papel Super admin tem sempre todas as permissões do catálogo, inclusive as que forem criadas depois, e não pode ser editado.
 - **RN-02.05** Sempre existe pelo menos um usuário ativo com o papel Super admin. A API recusa desativar, remover o papel ou excluir o último.
 - **RN-02.06** Um usuário não pode alterar os próprios papéis nem as próprias permissões avulsas.
@@ -90,10 +90,10 @@ As métricas usam só dados já existentes; não há tabela própria no MVP.
 ## 7. Entrar como
 
 - **RN-02.17** O admin escolhe a organização, informa o motivo (mínimo 10 caracteres) e confirma. A sessão "entrar como" dura 60 minutos e pode ser encerrada antes.
-- **RN-02.18** No MVP o acesso é total: o admin age no app `web` com as mesmas permissões do dono daquela organização.
+- **RN-02.18** No MVP o acesso é total: o admin age no app `varal-panel-web` com as mesmas permissões do dono daquela organização.
 - **RN-02.19** Durante a sessão, uma faixa fixa e destacada no topo do app mostra "Você está acessando como {organização} — {admin}" e o botão "Encerrar acesso".
 - **RN-02.20** Toda ação feita na sessão grava na auditoria o ator como o dono e `impersonator_id` com o admin, mais o id da sessão de "entrar como".
-- **RN-02.21** A sessão é aberta num cookie próprio do app `web`, emitido a partir do admin; ela não dá acesso a outras organizações nem ao admin.
+- **RN-02.21** A sessão é aberta num cookie próprio do app `varal-panel-web`, emitido a partir do admin; ela não dá acesso a outras organizações nem ao admin.
 - **RN-02.22** O dono vê, no próprio painel, a lista de acessos de suporte feitos na conta dele (admin, motivo, início e fim).
 
 ## 8. E-mails e auditoria
@@ -147,7 +147,7 @@ Todas sob `/api/v1/admin`, com a permissão exigida entre colchetes.
 | `GET /emails`, `GET /emails/usage` | `emails:read` |
 | `GET /audit-logs` | `audit:read` |
 
-No app `web` (lado do dono):
+No `varal-panel-web` (lado do dono):
 
 | Método e rota | Descrição |
 | --- | --- |
