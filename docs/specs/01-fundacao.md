@@ -370,6 +370,7 @@ Rotas em português, sem acentos, com hífen entre palavras. Parâmetros identif
 | `/metricas` | Métricas |
 | `/emails` | E-mails |
 | `/auditoria` | Auditoria |
+| `/acessos-de-suporte` | Sessões de "entrar como" (em andamento e encerradas) |
 | `/usuarios`, `/usuarios/{id}` | Usuários do admin |
 | `/papeis`, `/papeis/{id}` | Papéis |
 
