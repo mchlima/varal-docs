@@ -73,7 +73,7 @@ Regras:
 - **RN-01.15** O Varal não sobe PostgreSQL nem proxy reverso próprios: usa os compartilhados do VPS. No proxy, entra com arquivos de configuração próprios (um `server` por host), sem alterar a configuração dos outros projetos; o `varal-infra` guarda esses arquivos e descreve como instalá-los e recarregar o proxy.
 - **RN-01.16** No PostgreSQL compartilhado, o Varal tem um banco `varal` e um usuário `varal` dono só desse banco, sem privilégio de superusuário. A API nunca conecta com o usuário `postgres`. Como as conexões são divididas entre projetos, o pool da API usa no máximo 10 conexões **(proposta)**.
 - **RN-01.17** A API entra na rede Docker externa `postgres` e na rede do proxy; não publica porta no host.
-- **RN-01.18** O DNS do domínio fica no **Cloudflare**, que também fornece o certificado HTTPS público. Os hosts do Varal ficam com proxy ligado (nuvem laranja) e modo SSL **Full (strict)**. Entre o Cloudflare e o VPS, o NGINX usa um **Cloudflare Origin Certificate** guardado em `/opt/nginx/certs/<host>/`, fora de qualquer repositório; o Varal não usa o certbot.
+- **RN-01.18** O DNS do domínio fica no **Cloudflare**, que também fornece o certificado HTTPS público. Os hosts do Varal ficam com proxy ligado (nuvem laranja) e modo SSL **Full (strict)**. Entre o Cloudflare e o VPS, o NGINX usa um **Cloudflare Origin Certificate** curinga (`*.kratinho.com.br` e `kratinho.com.br`, válido até 2041) guardado em `/opt/nginx/certs/kratinho.com.br/`, fora de qualquer repositório; o Varal não usa o certbot.
 - **RN-01.19** Atrás do Cloudflare, o IP do cliente vem no cabeçalho `CF-Connecting-IP`. O NGINX restaura o IP real (`real_ip_header CF-Connecting-IP` e `set_real_ip_from` com as faixas de IP publicadas pelo Cloudflare) e repassa à API em `X-Forwarded-For`. A API confia nesse cabeçalho só vindo do proxy, e é esse o IP gravado em sessões e auditoria.
 - O Cloudflare encaminha WebSocket. Conexões ociosas por mais de 100 segundos são encerradas, o que não afeta o Socket.IO, que envia ping a cada 25 segundos.
 - Registros que não são HTTP, como os de e-mail (SPF, DKIM e DMARC do SMTP da Locaweb), também ficam na zona do Cloudflare, sem proxy (nuvem cinza).
@@ -82,20 +82,23 @@ Regras:
 | --- | --- | --- |
 | Cloudflare | DNS e proxy na borda | HTTPS público |
 | proxy (`nginx`) | container compartilhado `nginx` em `/opt/nginx` | Portas 80/443; HTTPS com o Origin Certificate |
-| `api` | imagem do `varal-web-api`, no Compose do Varal | Redes `postgres` e `proxy`, porta 3000 interna |
+| `api` | imagem do `varal-web-api`, no Compose do Varal, container `varal-api` | Via proxy em `api-web-varal.kratinho.com.br`; redes `postgres` e `proxy`, porta 3000 interna |
 | `panel` | build estático do `varal-panel-web`, servido pelo proxy | Via proxy |
 | `admin` | build estático do `varal-admin-web`, servido pelo proxy | Via proxy |
 | `postgres` | container compartilhado `postgres` (`postgres:17`); banco e usuário `varal` | Rede `postgres` |
 | `backup` | container agendado no Compose do Varal | Nenhuma |
 
-Domínios **(proposta)**, sob kratinho.com.br enquanto não houver domínio próprio:
+Domínios, sob kratinho.com.br enquanto não houver domínio próprio (no ar desde 2026-10-01):
 
 | Host | Serve |
 | --- | --- |
-| `varal.kratinho.com.br` | `varal-panel-web`; `/api` e `/ws` encaminhados para a API |
-| `admin.varal.kratinho.com.br` | `varal-admin-web`; `/api` encaminhado para a API |
+| `varal.kratinho.com.br` | front do painel (`varal-panel-web`) |
+| `admin-varal.kratinho.com.br` | front do admin (`varal-admin-web`) |
+| `api-web-varal.kratinho.com.br` | backend: API REST (`/api/v1`) e WebSocket (`/ws`) |
 
-- API e app no mesmo host evitam CORS e permitem cookies `SameSite=Strict`.
+- Os subdomínios usam hífen, não ponto (`admin-varal`, e não `admin.varal`), porque o certificado curinga `*.kratinho.com.br` só cobre um nível.
+- **RN-01.20** Os fronts chamam a API pelo host próprio dela (`API_BASE_URL=https://api-web-varal.kratinho.com.br`). A API libera CORS com credenciais só para as origens exatas `https://varal.kratinho.com.br` e `https://admin-varal.kratinho.com.br` (em desenvolvimento, as do `localhost`), e o Socket.IO usa a mesma lista. Nunca usa `*`.
+- Os três hosts são do mesmo site (`kratinho.com.br`), então os cookies `SameSite=Strict` da sessão continuam sendo enviados nas chamadas dos fronts à API. Os cookies são emitidos pela API sem atributo `Domain` (só valem no host da API); como os dois fronts usam o mesmo host de API, painel e admin se distinguem pelo nome do cookie (seção 7.2).
 - Os apps são SPAs (Nuxt com `ssr: false`); o `varal-panel-web` é instalável como PWA.
 - Cada repositório de código publica a própria imagem ou build; o `varal-infra` só referencia versões (tags), sem copiar código.
 - Backup: `pg_dump` do banco `varal` diário às 04:00 (horário de Brasília), rodando em container, comprimido, enviado para armazenamento fora do VPS, com retenção de 30 dias. O destino é questão aberta.
@@ -376,4 +379,4 @@ Rotas em português, sem acentos, com hífen entre palavras. Parâmetros identif
 
 - Destino do backup fora do VPS (ex.: bucket S3 compatível, outro servidor).
 - Restringir as portas 80/443 do VPS às faixas de IP do Cloudflare. Hoje elas aceitam qualquer origem, e a regra afetaria também os outros projetos do VPS.
-- Confirmar as propostas técnicas: Prisma, zod, pg-boss, JWT com renovação em cookie, subdomínios.
+- Confirmar as propostas técnicas: Prisma, zod, pg-boss, JWT com renovação em cookie.
