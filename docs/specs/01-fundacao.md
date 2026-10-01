@@ -156,7 +156,9 @@ Cada repositório é trabalhado por vários agentes ao mesmo tempo, cada um num 
 ### 7.2 Sessão
 
 - Token de acesso JWT com validade de 15 min e token de renovação opaco com validade de 30 dias, rotativo, guardado como hash no banco. Ambos em cookies `httpOnly`, `Secure`, `SameSite=Strict`.
-- Cookies do admin usam nome e segredo de assinatura diferentes dos do app dos clientes; um token de um contexto nunca é aceito no outro.
+- Cookies do admin usam nome e segredo de assinatura diferentes dos do app dos clientes; um token de um contexto nunca é aceito no outro. Nomes: `__Host-varal_at` e `__Secure-varal_rt` (renovação, `Path=/api/v1/auth`) no app; `__Host-varal_admin_at` e `__Secure-varal_admin_rt` (`Path=/api/v1/admin/auth`) no admin.
+- A cada requisição a API confere o token de acesso e se a sessão continua válida, então logout, troca de senha e desativação cortam o acesso na hora (o WebSocket é desconectado pelo mesmo evento). Um `X-Device-Id` diferente do da sessão é recusado.
+- Renovação rotativa: reapresentar um token de renovação já trocado revoga a sessão (sinal de roubo). Nos 30 s seguintes a uma troca, o token anterior só é recusado, sem revogar (duas abas ou reenvio).
 - Cada aparelho recebe um `device_id` (UUID guardado no aparelho) enviado em todas as requisições, usado na auditoria e na lista de sessões.
 - Logout encerra a sessão do aparelho. Troca ou redefinição de senha encerra todas as sessões daquele usuário.
 - Desativar um colaborador encerra todas as sessões dele imediatamente; o WebSocket dele é desconectado.
@@ -165,7 +167,8 @@ Cada repositório é trabalhado por vários agentes ao mesmo tempo, cada um num 
 
 - Hash com argon2id.
 - Mínimo de 8 caracteres. Sem outras regras de composição.
-- Bloqueio temporário de 15 min após 10 tentativas erradas seguidas para o mesmo identificador.
+- Bloqueio temporário de 15 min após 10 tentativas erradas seguidas para o mesmo identificador, exista ou não, com a mesma resposta de credenciais inválidas nos dois casos. Também há limite de requisições por IP nos logins e no "Esqueci a senha".
+- Falhas de login não vão para `audit_logs` (identificadores inventados encheriam a tabela); ficam no contador de bloqueio e no log da aplicação.
 
 ### 7.4 Convite e redefinição
 
@@ -176,7 +179,8 @@ Cada repositório é trabalhado por vários agentes ao mesmo tempo, cada um num 
 | Redefinição do colaborador | O dono, no painel | E-mail (se houver) e/ou link para copiar ou enviar por WhatsApp | 1 hora |
 | Convite e redefinição de admin | Admin com `admin.users:manage` | E-mail | 7 dias / 1 hora |
 
-- O token do link é aleatório (32 bytes), guardado só como hash, de uso único.
+- O token do link é aleatório (32 bytes), guardado só como hash, de uso único. O link é `/definir-senha#token=...&tipo=convite|redefinicao`: o token vai no fragmento, que o navegador não envia ao servidor nem grava em logs de acesso.
+- Troca de senha logado encerra todas as sessões do usuário e abre uma nova para o aparelho atual.
 - Ao gerar um novo token do mesmo tipo para o mesmo usuário, os anteriores são invalidados.
 - **RN-01.02** No máximo 3 links de redefinição por usuário por hora.
 - **RN-01.03** "Esqueci a senha" responde sempre com a mesma mensagem, exista ou não o e-mail.
@@ -193,15 +197,15 @@ Toda ação que cria, altera, cancela ou remove dado relevante grava uma linha e
 ## 9. E-mail
 
 - Envio via SMTP Locaweb com nodemailer, remetente fixo `Varal <nao-responda@kratinho.com.br>`.
-- **RN-01.21** O endereço `nao-responda@kratinho.com.br` não recebe e-mail: no Cloudflare Email Routing (MX do domínio no Cloudflare), a regra desse endereço descarta as mensagens (ação *drop*). Respostas enviadas a ele se perdem (as devoluções vão para o Return Path, RN-01.22), por isso todo e-mail diz no rodapé que não deve ser respondido e indica onde pedir ajuda.
+- **RN-01.21** O endereço `nao-responda@kratinho.com.br` não recebe e-mail: no Cloudflare Email Routing (MX do domínio no Cloudflare), a regra desse endereço descarta as mensagens (ação *drop*). Respostas enviadas a ele se perdem (as devoluções vão para o Return Path, RN-01.22), por isso todo e-mail diz no rodapé que não deve ser respondido e indica onde pedir ajuda: o contato de suporte do Varal (configurado na API) para donos e admins, e o responsável pela barraca para colaboradores.
 - **RN-01.22** Autenticação do e-mail, configurada em 2026-10-01 (registros na zona do Cloudflare, todos sem proxy):
   - **Return Path** em `bounce.kratinho.com.br` (CNAME para `smtplw.com`): é o envelope dos envios do SMTP Locaweb. O SPF passa nesse subdomínio (`include:_spf.smtplw.com`) e fica alinhado com `kratinho.com.br` para o DMARC. As devoluções vão para a Locaweb, não para o `nao-responda@`.
   - **SPF** do domínio principal: continua só com o Cloudflare Email Routing (`include:_spf.mx.cloudflare.net`). Não acrescente a Locaweb nele.
   - **DKIM** da Locaweb em `smtp._domainkey.bounce.kratinho.com.br`; o DMARC de `bounce` é um CNAME para `_dmarc.smtpdlv.com.br`, mantido pela Locaweb.
   - **DMARC** do domínio em `_dmarc.kratinho.com.br`, gerenciado pelo DMARC Management do Cloudflare (relatórios no painel do Cloudflare). Começa em `p=none`; passa a `quarantine` depois de algumas semanas sem falhas nos relatórios.
-- Envio assíncrono por fila no próprio PostgreSQL (**pg-boss**), para que lentidão do SMTP não trave a requisição. Até 3 tentativas com espera crescente.
+- Envio assíncrono por fila no próprio PostgreSQL (**pg-boss**), para que lentidão do SMTP não trave a requisição. Até 3 tentativas no total, com espera crescente. O e-mail é enfileirado na mesma transação da ação que o gera: se a ação for desfeita, nada é enviado. Os dados do job (destinatário e link) ficam cifrados no banco.
 - Cada envio grava `email_logs` (destinatário, tipo, situação, erro, datas).
-- **RN-01.04** Limite do plano: 10.000 envios por mês. Ao atingir 80% (8.000), o admin da plataforma vê um alerta no painel. Ao atingir 100%, envios não críticos param; convites e redefinições continuam e o alerta muda para crítico.
+- **RN-01.04** Limite do plano: 10.000 envios por mês (mês no fuso de São Paulo; contam os e-mails na fila e enviados, não os que falharam). Ao atingir 80% (8.000), o admin da plataforma vê um alerta no painel. Ao atingir 100%, envios não críticos param; convites e redefinições continuam e o alerta muda para crítico.
 - Nenhum e-mail é disparado por evento operacional (pedido, pagamento, turno).
 - Tipos no MVP: `owner_invite`, `owner_password_reset`, `staff_password_reset`, `admin_invite`, `admin_password_reset`.
 
@@ -306,6 +310,7 @@ No MVP cada organização tem um dono. A tabela já permite mais de um.
 | `POST /api/v1/auth/password/change` | Troca de senha logado |
 | `POST /api/v1/admin/auth/login` | Login do admin da plataforma |
 | `POST /api/v1/admin/auth/refresh`, `/logout`, `GET /me` | Equivalentes no contexto do admin |
+| `POST /api/v1/admin/auth/password/forgot`, `/reset`, `/change` | Senha do admin (pedido, convite ou redefinição, troca) |
 
 ## 14. Telas
 
@@ -369,7 +374,7 @@ Rotas em português, sem acentos, com hífen entre palavras. Parâmetros identif
 - **CA-01.02** Um colaborador da organização A, com token válido, recebe 404 ao acessar qualquer recurso da organização B, em todos os endpoints (teste automatizado).
 - **CA-01.03** O login do colaborador pelo link `/e/{code}` funciona digitando apenas username e senha.
 - **CA-01.04** Um token do app `varal-panel-web` é recusado nas rotas `/api/v1/admin` e vice-versa.
-- **CA-01.05** Redefinir a senha de um colaborador encerra as sessões abertas dele em até 15 minutos (expiração do token de acesso) e desconecta o WebSocket na hora.
+- **CA-01.05** Redefinir a senha de um colaborador encerra as sessões abertas dele na hora: a próxima requisição de qualquer aparelho dele é recusada e o WebSocket é desconectado.
 - **CA-01.06** Repetir uma requisição de criação com a mesma `Idempotency-Key` não cria registro duplicado e devolve a mesma resposta.
 - **CA-01.07** Com o aparelho sem conexão, uma mudança de etapa feita na estação fica na fila local e é aplicada uma única vez quando a conexão volta.
 - **CA-01.08** Cada ação listada na seção 8 gera exatamente uma linha de auditoria com ator, aparelho e alterações.
