@@ -65,6 +65,20 @@ Domínios **(proposta)**, sob kratinho.com.br enquanto não houver domínio pró
 - Backup: `pg_dump` diário às 04:00 (horário de Brasília), comprimido, enviado para armazenamento fora do VPS, com retenção de 30 dias. O destino é questão aberta.
 - Variáveis sensíveis (SMTP, segredos de token, banco) só em variáveis de ambiente, nunca no repositório. Um `.env.example` lista todas.
 
+### 4.1 Desenvolvimento com vários agentes em paralelo
+
+O repositório é trabalhado por vários agentes ao mesmo tempo, cada um num git worktree em `.worktrees/` (regras no `AGENTS.md`). O ambiente de desenvolvimento precisa permitir vários worktrees rodando juntos na mesma máquina.
+
+- **RN-01.06** Um Postgres de desenvolvimento compartilhado roda num projeto Compose fixo (`varal-dev-db`, porta 5432). Cada worktree usa **um banco próprio** nesse servidor, chamado `varal_<slug-da-branch>`.
+- **RN-01.07** Cada worktree tem um `.env.local` (fora do git) com `WORKTREE_SLUG`, `PORT_OFFSET`, as portas resultantes, `DATABASE_URL` do seu banco e `COMPOSE_PROJECT_NAME=varal-<slug>`.
+- **RN-01.08** Portas: API `3000 + PORT_OFFSET`, web `3100 + PORT_OFFSET`, admin `3200 + PORT_OFFSET`. O checkout principal usa `PORT_OFFSET=0`; cada worktree recebe o próximo valor livre entre 1 e 99.
+- Um script `scripts/worktree.sh` faz o ciclo completo:
+  - `new <tipo>/<descricao>`: cria o worktree a partir da `main`, escolhe um `PORT_OFFSET` livre, gera o `.env.local`, cria o banco, instala dependências e aplica migrations e seed;
+  - `list`: mostra worktrees com branch, portas e banco;
+  - `remove <nome>`: apaga o banco do worktree e remove o worktree (recusa se houver alterações sem commit).
+- Os testes automatizados de cada worktree usam um banco de teste próprio (`varal_<slug>_test`), recriado a cada execução.
+- Nenhum script do projeto pode apagar bancos, volumes ou containers que não sejam do próprio worktree.
+
 ## 5. Convenções da API
 
 - REST com JSON, prefixo `/api/v1`. Rotas do admin da plataforma em `/api/v1/admin/...`.
