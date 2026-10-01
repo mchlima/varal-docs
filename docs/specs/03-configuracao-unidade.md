@@ -143,7 +143,7 @@ Todas exigem perfil dono, exceto onde indicado.
 | --- | --- |
 | `GET/POST /api/v1/units`, `PATCH /api/v1/units/{id}` | Unidades |
 | `GET /api/v1/units/{id}/stations`, `POST`, `PATCH /stations/{id}` | Estações |
-| `GET /api/v1/units/{id}/workflow`, `PUT /api/v1/units/{id}/workflow` | Fluxo completo, salvo de uma vez (validado pelas RN-03.05 a 03.07) |
+| `GET /api/v1/units/{id}/workflow`, `PUT /api/v1/units/{id}/workflow` | Fluxo completo, salvo de uma vez (validado pelas RN-03.05 a 03.07). Leitura também para colaboradores da unidade (o balcão mostra as etapas); escrita só do dono |
 | `GET /api/v1/units/{id}/menu` | Cardápio completo da unidade (dono e colaboradores da unidade) |
 | `POST/PATCH /api/v1/categories`, `PUT /api/v1/units/{id}/categories/order` | Categorias e ordenação |
 | `POST/PATCH /api/v1/products`, `PUT /api/v1/categories/{id}/products/order` | Produtos e ordenação |
