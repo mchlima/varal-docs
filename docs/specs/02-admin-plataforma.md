@@ -89,15 +89,15 @@ As métricas usam só dados já existentes; não há tabela própria no MVP. Tur
 
 ## 7. Entrar como
 
-- **RN-02.17** O admin escolhe a organização, informa o motivo (mínimo 10 caracteres) e confirma. A sessão "entrar como" dura 60 minutos e pode ser encerrada antes.
+- **RN-02.17** O admin escolhe a organização e confirma; não há motivo a informar. A sessão "entrar como" não tem prazo: dura até o admin encerrar, no admin ou pelo "Encerrar acesso" no app.
 - **RN-02.18** No MVP o acesso é total: o admin age no app `varal-panel-web` com as mesmas permissões do dono daquela organização.
-- **RN-02.19** Durante a sessão, uma faixa fixa e destacada no topo do app mostra "Você está acessando como {organização} — {admin}" e o botão "Encerrar acesso".
+- **RN-02.19** Durante a sessão, uma faixa fixa e destacada no topo do app mostra "Você está acessando como {organização} — {admin}" e o botão "Encerrar acesso". Como não há prazo, a faixa não mostra tempo restante.
 - **RN-02.20** Toda ação feita na sessão grava na auditoria o ator como o dono e `impersonator_id` com o admin, mais o id da sessão de "entrar como".
 - **RN-02.21** A sessão é aberta num cookie próprio do app `varal-panel-web`, emitido a partir do admin; ela não dá acesso a outras organizações nem ao admin. Fluxo:
-  1. `POST /admin/impersonations` cria a sessão (60 min) e devolve um link `{painel}/entrar-como#token=...`, de uso único, válido por 2 minutos, guardado só como hash.
+  1. `POST /admin/impersonations` cria a sessão (sem prazo) e devolve um link `{painel}/entrar-como#token=...`, de uso único, válido por 2 minutos, guardado só como hash. A validade do link protege só a entrega dele; não limita o acesso.
   2. A página `/entrar-como` do painel troca o token por uma sessão do app (`POST /auth/impersonation`), e a API exige que o mesmo navegador tenha a sessão do admin que gerou o link: um link vazado não funciona em outro navegador.
-  3. A sessão do app nunca passa do fim do "entrar como". Encerrar pelo admin ou pelo "Encerrar acesso" no app derruba a sessão e o tempo real na hora. Trocar a senha do dono durante o acesso é recusado.
-- **RN-02.22** O dono vê, no próprio painel, a lista de acessos de suporte feitos na conta dele (admin, motivo, início e fim).
+  3. A sessão do app não é limitada por prazo (segue as regras normais de renovação da spec 01), mas termina junto com o "entrar como": encerrar pelo admin ou pelo "Encerrar acesso" no app derruba a sessão e o tempo real na hora. Trocar a senha do dono durante o acesso é recusado.
+- **RN-02.22** O dono vê, no próprio painel, a lista de acessos de suporte feitos na conta dele (admin, início e fim; o motivo só aparece nos acessos antigos, em que era informado).
 
 ## 8. E-mails e auditoria
 
@@ -122,7 +122,7 @@ As métricas usam só dados já existentes; não há tabela própria no MVP. Tur
 
 **announcement_reads**: `announcement_id`, `organization_id`, `user_id`, `read_at`. Único por par.
 
-**impersonation_sessions**: `platform_admin_id`, `organization_id`, `owner_id`, `reason`, `started_at`, `expires_at`, `ended_at`, `ended_by` (`admin`, `expired`), e o hash e a validade do link de troca. `audit_logs` ganha `impersonation_id`.
+**impersonation_sessions**: `platform_admin_id`, `organization_id`, `owner_id`, `reason` (opcional), `started_at`, `expires_at` (opcional), `ended_at`, `ended_by` (`admin`, `expired`), e o hash e a validade do link de troca. `audit_logs` ganha `impersonation_id`. `reason`, `expires_at` e `ended_by = expired` ficam só por compatibilidade, no histórico dos acessos feitos quando havia motivo e limite de 60 minutos; acessos novos não têm motivo nem prazo e terminam só por `admin`.
 
 ## 10. API
 
@@ -146,7 +146,7 @@ Todas sob `/api/v1/admin`, com a permissão exigida entre colchetes. As permiss�
 | `GET /announcements`, `GET /announcements/{id}` | `announcements:read` |
 | `POST /announcements`, `PATCH /announcements/{id}`, `POST /announcements/{id}/publish`, `/archive` | `announcements:manage` |
 | `GET /metrics/overview`, `GET /metrics/organizations` | `metrics:read` |
-| `POST /impersonations`, `GET /impersonations` | `impersonation:use` |
+| `POST /impersonations` (só a organização; sem motivo nem prazo), `GET /impersonations` | `impersonation:use` |
 | `POST /impersonations/{id}/end` | o próprio admin da sessão |
 | `GET /emails`, `GET /emails/usage` | `emails:read` |
 | `GET /audit-logs` | `audit:read` |
@@ -157,7 +157,7 @@ No `varal-panel-web` (lado do dono):
 | --- | --- |
 | `GET /api/v1/announcements/unread` | Comunicados publicados, do público do dono, ainda não lidos |
 | `POST /api/v1/announcements/{id}/read` | Marca como lido |
-| `GET /api/v1/support-access` | Acessos de suporte feitos na organização |
+| `GET /api/v1/support-access` | Acessos de suporte feitos na organização (admin, início e fim; motivo se houver) |
 | `POST /api/v1/auth/impersonation` | Troca o link do "entrar como" por uma sessão do app (RN-02.21) |
 
 ## 11. Telas
@@ -185,8 +185,8 @@ Ações sem permissão não aparecem na interface.
 - **CA-02.05** Suspender uma organização impede abrir turno (erro `ORGANIZATION_SUSPENDED`) e mostra a faixa no painel do dono; um turno que já estava aberto continua operando até ser fechado.
 - **CA-02.06** Um comunicado agendado para todas as organizações aparece para os donos na data marcada e some da faixa depois de marcado como lido.
 - **CA-02.07** Durante um "entrar como", uma alteração no cardápio fica na auditoria com o admin em `impersonator_id`, e a faixa de aviso fica visível em todas as telas.
-- **CA-02.08** A sessão "entrar como" expira em 60 minutos; depois disso, as requisições com aquele cookie são recusadas.
-- **CA-02.09** O dono vê na lista de acessos de suporte o acesso feito, com motivo e horários.
+- **CA-02.08** A sessão "entrar como" termina quando o admin encerra (no admin ou pelo "Encerrar acesso" no app), sem prazo; depois disso, as requisições com aquele cookie são recusadas.
+- **CA-02.09** O dono vê na lista de acessos de suporte o acesso feito, com o admin e os horários.
 
 ## 13. Questões abertas
 
