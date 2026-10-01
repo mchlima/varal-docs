@@ -30,7 +30,8 @@ Tokens mantidos nos dois apps como variáveis CSS, com esta tabela como fonte. U
 | `--color-surface-muted` | `#F6F7F5` | Cartões dentro de listas |
 | `--color-text` | `#111315` | Texto principal |
 | `--color-text-muted` | `#5A6067` | Texto secundário (mínimo 4,5:1 sobre `surface`) |
-| `--color-border` | `#D9DCD8` | Bordas e divisórias |
+| `--color-border` | `#D9DCD8` | Divisórias e bordas decorativas (cartões, separadores) |
+| `--color-border-strong` | `#7A8085` | Borda de componentes que precisam ser vistos: campos, botões de contorno, caixas de seleção (3:1 ou mais sobre `bg`, `surface` e `surface-muted`) |
 | `--color-focus` | `#111315` | Anel de foco do teclado |
 
 Os neutros têm leve tom esverdeado-acinzentado para não parecerem cinza padrão.

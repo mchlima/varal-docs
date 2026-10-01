@@ -4,7 +4,12 @@ Infraestrutura do Varal: Docker Compose de produção no VPS, configuração do 
 
 ### Comandos
 
-Ainda não há arquivos. Quando forem criados, registre aqui como subir o Postgres de desenvolvimento, validar a configuração do NGINX, e fazer deploy.
+```sh
+docker compose -f dev/compose.yml up -d    # Postgres de desenvolvimento (varal-dev-db, 127.0.0.1:5432, varal/varal)
+docker compose -f dev/compose.yml ps
+```
+
+Configuração do NGINX e como aplicá-la no VPS: `nginx/README.md`. Deploy: a definir (plano de desenvolvimento, seção 6).
 
 ### Regras deste repositório
 
