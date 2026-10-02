@@ -70,18 +70,20 @@ Erro de formulário usa `#B91C1C` em texto sobre fundo branco, com ícone e mens
 | Botão de confirmação de valor | Mostra valor e forma: "Confirmar R$ 46,00 no Pix" |
 | Ação destrutiva | Texto vermelho escuro em menu secundário, sempre com confirmação na própria tela (nada de diálogo do navegador) |
 | Cartão de comanda | Número grande à esquerda, nome e resumo ao centro, total à direita; borda esquerda primária quando selecionado |
-| Cartão de item (estação) | Quantidade e produto em 20 px negrito; modificadores e observação logo abaixo, observação em destaque; chip de status no topo; botão de avanço ocupando a largura |
+| Cartão de pedido (estação) | Um cartão por pedido, nunca por item (spec 04, RN-04.40). Cabeçalho com número da comanda em 24 px, nome, "Adicional" quando for, e tempo decorrido em algarismos de largura fixa; o fundo do cabeçalho usa a cor de status ("Novo" até ser tocado, neutro, "Atrasado"). Linhas com quantidade e produto em 20 px negrito, modificadores logo abaixo e observação em bloco com fundo `primary-soft`, texto `primary-deep` e ícone; chip da etapa em cada linha; linha feita riscada com ícone de confirmação; linha cancelada riscada com o chip "Cancelado". Botão de avanço do pedido no estilo secundário (contorno), ocupando a largura do cartão, com pelo menos 56 px: com vários cartões na tela, nenhum deles usa o botão preenchido com a primária (CA-08.02) |
 | Chip de status | Cantos de 6 px, texto em maiúsculas com espaçamento leve, ícone de 14 px |
-| Faixa de aviso | Topo da tela, largura total: sem conexão, turno em andamento, organização suspensa, "entrar como" (esta última em cor própria, escura, para nunca passar despercebida) |
+| Faixa de operação (balcão) | Caixa aberto, tabela de preço efetiva e evento em andamento (spec 04, seção 8.1). Tabela diferente de "Normal" e evento usam fundo `primary-soft` e texto `primary-deep`, com ícone; tabela "Normal" em texto neutro |
+| Faixa de aviso | Topo da tela, largura total: sem conexão, relatório com valores parciais, organização suspensa, "entrar como" (esta última em cor própria, escura, para nunca passar despercebida) |
 
 Cantos arredondados variam por função (6, 10, 12 px), não um único raio para tudo.
 
 ## 7. Layout
 
 - Celular primeiro: largura de referência 360–430 px, com uma coluna.
-- Tablet: estações mostram a fila em duas ou três colunas; balcão mostra varal e comanda lado a lado.
+- Tablet, TV e computador: as estações ocupam **toda a largura da tela**, com colunas de cartões de largura fixa (cerca de 300 px) e tantas colunas quantas couberem (spec 04, seção 8.2); balcão mostra varal e comanda lado a lado. As demais telas de operação continuam com largura máxima de leitura.
 - Painel do dono e admin: navegação lateral a partir de 1024 px; abaixo disso, menu inferior.
-- Ação principal fixa no rodapé nas telas de operação (balcão, estação, receber), alcançável com o polegar.
+- Ação principal fixa no rodapé nas telas de operação (balcão, receber), alcançável com o polegar. Na estação, a ação principal fica em cada cartão.
+- Início do painel: a ação principal do momento (spec 01, RN-01.24) é o único botão preenchido, no topo, em largura total no celular; o resto da página é secundário.
 
 ## 8. Acessibilidade
 
@@ -117,6 +119,7 @@ Versão provisória (2026-10-01), até haver um logo definitivo. Os arquivos fic
 - **CA-08.02** Nenhuma tela de operação tem mais de um botão preenchido com a primária.
 - **CA-08.03** Todos os status aparecem com texto e ícone.
 - **CA-08.04** Os alvos de toque das telas de balcão e estação medem pelo menos 48 × 48 px.
+- **CA-08.05** O botão "Painel" e o "Trocar de estação" das telas de operação (spec 01, RN-01.25) medem pelo menos 48 × 48 px e têm texto, não só ícone.
 
 ## 11. Questões abertas
 

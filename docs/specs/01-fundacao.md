@@ -137,7 +137,7 @@ Cada repositório é trabalhado por vários agentes ao mesmo tempo, cada um num 
 - Rotas do admin da plataforma, a autenticação e os jobs usam um cliente de banco sem esse filtro; uma regra de lint impede importá-lo em outros módulos.
 - Testes automatizados garantem que um usuário da organização A não lê nem altera nada da organização B em nenhum endpoint (teste de isolamento obrigatório para cada novo recurso).
 
-**RN-01.01** Uma organização com situação `suspended` ou `canceled` não abre turnos novos; turnos já abertos podem ser fechados.
+**RN-01.01** *(ajustada em 2026-10-02)* Uma organização com situação `suspended` ou `canceled` não abre caixa (spec 05, RN-05.24); caixas já abertos continuam operando e podem ser fechados.
 
 ## 7. Autenticação
 
@@ -151,7 +151,7 @@ Cada repositório é trabalhado por vários agentes ao mesmo tempo, cada um num 
 
 - O código do estabelecimento é a coluna `organizations.access_code`: 6 caracteres alfanuméricos maiúsculos, sem caracteres ambíguos (0/O, 1/I), único, gerado na criação.
 - O link de acesso do colaborador é `https://varal.kratinho.com.br/e/{access_code}`; abre a tela de login com o código preenchido. O QR code codifica esse link.
-- Dono e colaborador usam o mesmo app; depois do login, o colaborador escolhe a estação entre as liberadas, e o dono vê o painel e pode abrir qualquer estação.
+- Dono e colaborador usam o mesmo app. Depois do login, quem tem acesso ao painel (RN-01.23) vai para o início do painel; os demais colaboradores vão direto para a estação, quando só têm uma liberada, ou escolhem entre as liberadas (seção 14.2).
 
 ### 7.2 Sessão
 
@@ -191,7 +191,7 @@ Toda ação que cria, altera, cancela ou remove dado relevante grava uma linha e
 
 - Campos: quem (tipo de ator e id), em nome de quem (quando for "entrar como"), ação (`tab.discount_applied`, `order_item.canceled`…), entidade e id, dados antes e depois (somente campos alterados), `device_id`, IP, data.
 - A gravação acontece na mesma transação da ação.
-- Ações auditadas no mínimo: login e logout, criação e alteração de cadastros, abertura e fechamento de turno e caixa, abertura, fechamento, reabertura e cancelamento de comanda, cancelamento de item, mudança de etapa, desconto, pagamento e estorno, sangria e suprimento, pendurar e quitar, todas as ações do admin da plataforma.
+- Ações auditadas no mínimo: login e logout, criação e alteração de cadastros, abertura e fechamento de caixa, troca da tabela vigente, início, encerramento e cancelamento de evento, abertura, fechamento, reabertura e cancelamento de comanda, cancelamento de item, mudança de etapa, desconto, pagamento e estorno, sangria e suprimento, pendurar e quitar, todas as ações do admin da plataforma.
 - A auditoria é somente inserção: não há endpoint para alterar ou apagar.
 
 ## 9. E-mail
@@ -206,7 +206,7 @@ Toda ação que cria, altera, cancela ou remove dado relevante grava uma linha e
 - Envio assíncrono por fila no próprio PostgreSQL (**pg-boss**), para que lentidão do SMTP não trave a requisição. Até 3 tentativas no total, com espera crescente. O e-mail é enfileirado na mesma transação da ação que o gera: se a ação for desfeita, nada é enviado. Os dados do job (destinatário e link) ficam cifrados no banco.
 - Cada envio grava `email_logs` (destinatário, tipo, situação, erro, datas).
 - **RN-01.04** Limite do plano: 10.000 envios por mês (mês no fuso de São Paulo; contam os e-mails na fila e enviados, não os que falharam). Ao atingir 80% (8.000), o admin da plataforma vê um alerta no painel. Ao atingir 100%, envios não críticos param; convites e redefinições continuam e o alerta muda para crítico.
-- Nenhum e-mail é disparado por evento operacional (pedido, pagamento, turno).
+- Nenhum e-mail é disparado por evento operacional (pedido, pagamento, caixa).
 - Tipos no MVP: `owner_invite`, `owner_password_reset`, `staff_password_reset`, `admin_invite`, `admin_password_reset`.
 
 ## 10. Tempo real
@@ -321,7 +321,8 @@ No MVP cada organização tem um dono. A tabela já permite mais de um.
 | Tela | App | Conteúdo |
 | --- | --- | --- |
 | Login | web | Abas "Sou dono" e "Sou colaborador". Pela rota `/e/{code}`, abre direto em colaborador com o nome da barraca no topo |
-| Escolher estação | web | Botões grandes com as estações liberadas na unidade; se houver mais de uma unidade, escolhe a unidade antes |
+| Início do painel | web | Próxima ação do dia em destaque (seção 14.2) |
+| Escolher estação | web | Botões grandes com as estações liberadas na unidade; se houver mais de uma unidade, escolhe a unidade antes; "Voltar ao painel" para quem tem acesso a ele |
 | Definir senha | web e admin | Usada no convite e na redefinição |
 | Esqueci a senha | web (dono) e admin | Pede o e-mail |
 | Indicador de conexão | web | Faixa fixa no topo quando desconectado ou com ações pendentes |
@@ -338,28 +339,69 @@ Rotas em português, sem acentos, com hífen entre palavras. Parâmetros identif
 | `/e/{codigo}` | Login do colaborador com o código preenchido | 01 |
 | `/definir-senha` | Convite e redefinição de senha | 01 |
 | `/esqueci-a-senha` | Pedido de redefinição do dono | 01 |
-| `/estacoes` | Escolha de unidade e estação | 01 |
+| `/estacoes` | Escolha de unidade e estação, com "Voltar ao painel" (RN-01.25) | 01 |
 | `/balcao` | Varal de comandas | 04 |
-| `/balcao/comandas/{numero}` | Comanda do turno atual | 04 |
+| `/balcao/comandas/{numero}` | Comanda em aberto com esse número na unidade (RN-04.09); comandas que não estão em aberto chegam com `?comanda={id}` | 04 |
 | `/balcao/comandas/{numero}/pedido` | Montar pedido | 04 |
 | `/balcao/comandas/{numero}/receber` | Receber, desconto e pendurar | 05, 06 |
 | `/balcao/paga-antes` | Comanda paga antes: montar pedido e cobrar numa operação | 05 |
-| `/estacao/{id}` | Fila de uma estação | 04 |
-| `/caixas` | Caixas do turno | 05 |
-| `/caixas/{id}/fechar` | Fechamento de caixa | 05 |
-| `/painel` | Início do painel do dono | — |
+| `/estacao/{id}` | Tela da estação (KDS) | 04 |
+| `/caixas` | Caixas da unidade: abrir, sangria, suprimento, fechar (dono e quem opera caixa) | 05 |
+| `/caixas/{id}/abrir` | Abrir o caixa `{id}` | 05 |
+| `/caixas/{id}/fechar` | Fechar a abertura em andamento do caixa `{id}` | 05 |
+| `/painel` | Início do painel, orientado à próxima ação (seção 14.2); dono e quem opera caixa | 01 |
 | `/painel/unidades` | Unidades | 03 |
 | `/painel/unidades/{id}/fluxo` | Estações e fluxo | 03 |
+| `/painel/unidades/{id}/caixas` | Caixas cadastrados da unidade | 05 |
 | `/painel/cardapio` | Cardápio | 03 |
+| `/painel/cardapio/tabelas` | Tabelas de preço | 03 |
+| `/painel/cardapio/tabelas/{id}` | Preços de uma tabela | 03 |
 | `/painel/colaboradores` | Colaboradores e permissões | 03 |
 | `/painel/acesso-da-equipe` | Código, link e QR | 03 |
-| `/painel/turnos` | Abrir turno e turno atual (dono e colaboradores com `can_operate_cash`, RN-04.02; o resto do `/painel` é só do dono) | 04 |
+| `/painel/eventos` | Eventos contratados (lista; iniciar e encerrar também para quem opera caixa) | 04 |
+| `/painel/eventos/novo`, `/painel/eventos/{id}` | Cadastro e detalhe do evento | 04 |
 | `/painel/fiado` | Clientes e valores a receber | 06 |
 | `/painel/fiado/{id}` | Cliente: comandas, saldo e histórico de quitações | 06 |
-| `/painel/relatorios` | Histórico | 07 |
-| `/painel/relatorios/turnos/{id}` | Relatório do turno | 07 |
+| `/painel/relatorios` | Histórico: dias, caixas e eventos | 07 |
+| `/painel/relatorios/periodo` | Relatório do dia ou período (`?unidade=&de=&ate=`) | 07 |
+| `/painel/relatorios/caixas/{id}` | Relatório de uma abertura de caixa | 07 |
+| `/painel/relatorios/eventos/{id}` | Relatório do evento | 07 |
 | `/painel/acessos-de-suporte` | Acessos de "entrar como" na conta | 02 |
 | `/entrar-como` | Troca o link do "entrar como" por uma sessão (token no fragmento) | 02 |
+
+Rotas que saíram em 2026-10-02: `/painel/turnos` (redireciona para `/painel`) e `/painel/relatorios/turnos/{id}` (redireciona para o relatório do dia daquele turno, spec 07).
+
+### 14.2 Navegação e início orientado à tarefa
+
+Redesenho de 2026-10-02, depois do teste real: o painel era uma lista de atalhos sem dizer o que fazer, e quem tocava em "Abrir estações" não conseguia voltar ao painel.
+
+**Quem vê o quê**
+
+- **RN-01.23** Têm acesso ao painel: o dono (tudo) e o colaborador com `can_operate_cash` em alguma unidade (início, caixas, fiado e eventos, sem cadastros nem relatórios). O colaborador só com estações não tem painel: a casa dele é a estação. A API continua sendo a barreira (rotas do dono respondem 403 a colaborador).
+
+**Início do painel (`/painel`)**
+
+- **RN-01.24** O início mostra **uma** ação principal, a próxima ação óbvia da unidade, a partir de `GET /units/{id}/operation` (spec 04, seção 7) e atualizada em tempo real (`unit.operation_updated`):
+
+| Situação da unidade | Ação principal | Ações secundárias e informação |
+| --- | --- | --- |
+| Nenhum caixa aberto | **Abrir caixa** (com um caixa cadastrado, vai direto a `/caixas/{id}/abrir`; com mais, a `/caixas`) | Comandas que seguem abertas de dias anteriores ("3 comandas em aberto"), evento agendado para hoje |
+| Caixa aberto | **Abrir balcão** (vai ao `/balcao`; com mais de um balcão na unidade, pergunta qual) | Caixas abertos, com responsável e desde quando; tabela vigente com "Trocar" (spec 04, RN-04.31); evento em andamento com "Encerrar"; para o dono, venda e recebido parciais de hoje com link para o relatório do dia; "Estações" e "Fechar caixa" |
+| Caixa aberto desde um dia anterior (spec 05, RN-05.26) | **Fechar caixa**, com o aviso "Caixa 1 aberto desde ontem, 17:02" | "Abrir balcão" |
+
+- Com mais de uma unidade, o topo do início tem a escolha da unidade (lembrada no aparelho) e um resumo de uma linha por unidade ("Centro: caixa aberto · Praia: caixa fechado").
+- Abaixo da ação, em estilo secundário e compacto, o resto: Fiado, Relatórios, Eventos, Cardápio e tabelas de preço, Unidades e caixas, Colaboradores, Acesso da equipe, Acessos de suporte (cada um conforme a RN-01.23). O primeiro acesso de um dono sem cardápio mostra antes uma lista de "Primeiros passos" (cadastrar produtos, convidar a equipe), que some quando concluída.
+
+**Menu do painel**
+
+- Celular: menu inferior com Início, Caixa, Balcão, Relatórios e Mais (dono) ou Início, Caixa, Balcão e Fiado (quem opera caixa). "Balcão" sai do painel e abre o balcão da unidade.
+- A partir de 1024 px: navegação lateral com Início, Caixa, Fiado, Relatórios, Eventos (só quando a unidade tiver evento), Cardápio, Unidades, Colaboradores, Acesso da equipe, Acessos de suporte e, separado, "Balcão e estações".
+
+**Voltar ao painel a partir da operação**
+
+- **RN-01.25** Em `/estacoes`, no balcão (varal) e na tela de estação, quem tem acesso ao painel vê sempre, no topo, o botão **"Painel"** (ícone de início e texto, alvo de 48 px), que leva ao `/painel`. O nome da estação no topo é também um botão, **"Trocar de estação"**, que abre a lista das estações liberadas sem sair da tela atual. Nas telas internas do balcão (comanda, pedido, receber), a seta de voltar leva ao varal, como hoje.
+- **RN-01.26** O colaborador só com estações não vê o botão "Painel". Se tiver uma única estação liberada, o login abre essa estação direto e não há "Trocar de estação"; com mais de uma, o botão aparece. "Sair" fica sempre no cabeçalho.
+- **RN-01.27** A navegação entre painel e operação usa rotas normais (sem substituir o histórico), para que o voltar do navegador e o gesto de voltar do celular também levem de volta ao painel. Na estação em tela cheia (spec 04, seção 8.2), o primeiro voltar sai da tela cheia.
 
 **App `varal-admin-web`**
 
@@ -392,6 +434,9 @@ Rotas em português, sem acentos, com hífen entre palavras. Parâmetros identif
 - **CA-01.13** Em produção, nenhum processo do Varal roda fora de Docker; o Compose do Varal não define serviços `nginx` nem `postgres`; a API conecta com o usuário `varal`.
 - **CA-01.14** Os hosts do Varal respondem por HTTPS pelo Cloudflare com SSL Full (strict) sem erro de certificado, e uma ação feita pelo app grava na auditoria o IP real do aparelho, não um IP do Cloudflare.
 - **CA-01.15** Um e-mail de convite enviado para Gmail e Outlook chega na caixa de entrada com SPF, DKIM e DMARC aprovados (`pass` no cabeçalho `Authentication-Results`).
+- **CA-01.16** O dono que toca em "Balcão e estações" no painel e abre a Cozinha volta ao painel com um toque em "Painel" e também com o voltar do navegador.
+- **CA-01.17** Um colaborador só com a estação Cozinha entra direto nela, sem botão "Painel" nem "Trocar de estação".
+- **CA-01.18** Sem caixa aberto, o início do painel tem "Abrir caixa" como único botão principal; depois de abrir, o botão principal passa a ser "Abrir balcão" sem recarregar a tela.
 
 ## 16. Questões abertas
 
