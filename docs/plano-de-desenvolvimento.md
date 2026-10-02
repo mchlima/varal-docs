@@ -188,22 +188,49 @@ Relatório do turno e histórico.
 
 Critérios: CA-07.
 
+### Fase 7.5 — Redesenho pós-teste
+
+O primeiro teste real do piloto (2026-10-02) mostrou que o turno confundia, que o painel não dizia o que fazer e que, ao abrir as estações, não havia como voltar ao painel. As specs foram reescritas (decisões na seção 6); esta fase leva o código até elas antes do piloto.
+
+Ordem: `varal-docs` (specs) → `varal-web-api` → `varal-panel-web` e `varal-admin-web` → `varal-infra` (só procedimento). Branch com o mesmo nome em todos: `feat/caixa-da-unidade`. A API remove as rotas de turno (`BREAKING CHANGE`), então API e painel são publicados juntos, numa janela sem caixa aberto (fora do horário da feira).
+
+| Repositório | Entregas |
+| --- | --- |
+| `varal-docs` | Specs 01 a 08 e este plano (feito nesta branch); `docs/agents/` sem `Shift` no glossário de exemplo e com os escopos novos; `AGENTS.md` regenerado em cada repositório |
+| `varal-web-api` | Migração de dados (abaixo); caixas cadastrados e aberturas de caixa (spec 05); dia de operação e numeração por dia (RN-04.09, RN-04.29); tabelas de preço e tabela vigente (RN-03.20 a 03.24, RN-04.31 a 04.33); eventos (RN-04.34 a 04.37); `GET /units/{id}/operation` e `unit.operation_updated`; fila da estação agrupada por pedido e avanço do pedido inteiro (RN-04.39 a 04.45); fechamento de caixa com pendentes, preparo e evento (RN-05.28, RN-05.29); relatórios por dia, caixa e evento (spec 07); métricas do admin por dia de operação (spec 02); seed com "Caixa 1" e uma tabela "Evento"; `openapi.json`; testes de todos os CA novos e reescritos |
+| `varal-panel-web` | Início do painel orientado à tarefa e menus novos (spec 01, seção 14.2); botão "Painel" e "Trocar de estação" no balcão, nas estações e em `/estacoes` (RN-01.24 a 01.27); telas de caixas (`/caixas`, abrir, fechar) e cadastro de caixas; faixa de operação do balcão e estado sem caixa aberto; troca da tabela vigente; tabelas de preço no cardápio e no editor de produto; eventos; tela da estação no formato KDS (cartão por pedido, grade em toda a largura, contadores, filtro, tela cheia, desfazer e recentes); relatórios (histórico em abas, período, caixa, evento); fila offline para as rotas novas; redirecionamentos de `/painel/turnos` e `/painel/relatorios/turnos/{id}`; Playwright do dia completo (abrir caixa → vender → cozinha → receber → fechar com comanda pendente) |
+| `varal-admin-web` | `pnpm gen:api`; métricas e detalhe da organização com dias de operação no lugar de turnos |
+| `varal-infra` | No `prod/README.md`, o passo de `pg_dump` manual do banco `varal` antes de aplicar a migração desta fase (ainda não há backup automático) |
+
+**Migração de dados** (uma migration de expansão nesta fase; a de contração, que apaga o que sobrou do turno, vai na versão seguinte, depois de os apps novos estarem no ar):
+
+1. **Caixas:** a tabela `cash_registers` atual (um caixa por turno) é renomeada para `cash_register_sessions`, e as colunas `cash_register_id` de `payments`, `cash_movements` e `cash_register_counts` viram `cash_register_session_id`. Os nomes distintos de cada unidade (sem diferenciar maiúsculas) viram os caixas cadastrados da nova `cash_registers`; unidade sem nenhum ganha "Caixa 1". Cada abertura recebe o `business_date` do dia de abertura do turno dela (fuso de São Paulo) e pendentes zerados. Histórico preservado: nenhum pagamento, movimento ou conferência muda de valor.
+2. **Comandas e itens:** `tabs.business_date` e `closed_business_date` = dia do turno; `order_items.canceled_business_date` = dia do turno nos cancelados. O único `(shift_id, number)` dá lugar ao índice parcial das comandas em aberto. Cada unidade recebe `business_date` e `next_tab_number` do último turno.
+3. **Preços do turno → tabelas de preço:** cada turno com preços vira uma tabela inativa, chamada pelo contratante (turno contratado) ou "Preços de dd/mm/aaaa", com os mesmos preços em `product_prices`; os itens vendidos com preço do turno recebem o `price_list_id` dessa tabela. O dono reativa e renomeia a que quiser reaproveitar (ex.: "Evento").
+4. **Acordos → eventos:** cada turno contratado vira um evento `finished` (contratante, data do turno, acordo e a tabela do passo 3), e as comandas do turno recebem o `event_id`.
+5. **Turno aberto na hora da migração** (a janela de deploy evita, mas a migration trata): as aberturas dele continuam abertas; se for contratado, o evento fica `in_progress`; se tiver preços, a tabela dele fica ativa e vigente.
+6. **Conferência:** um script compara, para cada turno antigo, venda, recebido, pendurado, perdas e diferença de caixa calculados pelo relatório de turno (antes) e pelo relatório do dia e dos caixas (depois); a migration só é aplicada em produção com o script sem diferenças no banco de desenvolvimento restaurado do `pg_dump`.
+7. **Contração (versão seguinte):** apaga `shifts`, `shift_agreements`, `shift_prices` e as colunas `shift_id` de `tabs`, `orders` e `payments`.
+
+Critérios: CA-01.16 a 01.18, CA-02.05, CA-03.03, CA-03.09 a 03.11, CA-04 (reescritos e CA-04.14 a 04.23), CA-05.08, CA-05.10 a 05.14, CA-06.03, CA-07 e CA-08.05, mais a conferência da migração sem diferenças.
+
 ### Fase 8 — Piloto
 
-- Teste de ponta a ponta nos aparelhos reais do piloto (Android e iPhone, sol, rede ruim).
-- Ensaio de um turno completo.
+- Teste de ponta a ponta nos aparelhos reais do piloto (Android e iPhone, sol, rede ruim), incluindo a tela da cozinha num tablet ou TV.
+- Ensaio de um dia completo: abrir o caixa, vender, preparar, receber, fechar o caixa com comanda pendente e abrir no dia seguinte.
 - Ajustes de usabilidade, observação dos relatórios de DMARC e acompanhamento do primeiro turno real.
 
 ### Paralelismo
 
 ```
-Fase 0 ─► Fase 1 ─► Fase 2 ─┬─► Fase 4 ─► Fase 5 ─► Fase 6 ─► Fase 7 ─► Fase 8
+Fase 0 ─► Fase 1 ─► Fase 2 ─┬─► Fase 4 ─► Fase 5 ─► Fase 6 ─► Fase 7 ─► Fase 7.5 ─► Fase 8
                             └─► Fase 3 (em paralelo a partir da 4)
 ```
 
 - Fases 0 e 2: cada repositório avança em paralelo, um agente por repositório.
 - A partir da fase 3: um agente na API e um em cada app por fase. O app começa assim que o PR da API com o contrato estiver mergeado.
 - O admin (fase 3) corre em paralelo com as fases 4 e 5, porque só depende da fundação.
+- Na fase 7.5, depois do PR da API com o contrato, o painel pode ser dividido entre agentes por assunto (início e navegação; caixas; tabelas e eventos; estação KDS; relatórios), cada um no seu worktree, todos com merge na mesma release.
 
 ## 4. Como cada entrega é feita
 
@@ -240,5 +267,16 @@ Decididos em 2026-10-01:
 
 - **Deploy:** pelo GitHub Actions, com usuário `deploy` restrito (seção 2.4).
 - **Versões:** começam em 0.1.0; a primeira versão no ar sai no fim da fase 2.
+
+Decididos em 2026-10-02, depois do primeiro teste real (fase 7.5):
+
+- **Fim do turno:** o turno deixa de existir para o usuário. O caixa é cadastrado na unidade; abrir o caixa (com fundo de troco) começa o dia e libera vender; fechar o caixa (contagem por forma e diferença) termina. Cada abertura até o fechamento é uma "abertura de caixa" (`cash_register_sessions`). Pagamentos ficam ligados à abertura em que foram recebidos (spec 05).
+- **Comandas abertas não travam o fechamento:** aparecem como pendentes e seguem abertas para o próximo dia ou outro caixa (spec 04, RN-04.07; spec 05, RN-05.28).
+- **Numeração das comandas:** sequencial por dia de operação da unidade (fuso de São Paulo), pulando os números de comandas ainda abertas de dias anteriores. O dia de operação só muda ao abrir o primeiro caixa num dia novo, para que a feira que passa da meia-noite não reinicie a numeração (spec 04, RN-04.09 e RN-04.29).
+- **Tabelas de preço** no lugar dos preços do turno: preenchidas uma vez no cardápio; a unidade tem uma tabela vigente trocada com um toque, que vale para itens novos (spec 03, seção 5.3; spec 04, seção 3.2).
+- **Evento contratado** continua no MVP como cadastro opcional da unidade (contratante, data, acordo, tabela de preço); em andamento, liga as comandas novas e impõe a tabela dele (spec 04, seção 3.3).
+- **Relatórios** por dia ou período, por abertura de caixa e por evento; o relatório do turno sai (spec 07).
+- **Navegação:** início do painel com uma ação principal conforme a situação da unidade; botão "Painel" e "Trocar de estação" em toda tela de operação para quem tem painel (spec 01, seção 14.2).
+- **Estação (KDS):** um pedido, um cartão, em todas as estações; avanço por item e do pedido inteiro; grade em toda a largura em telas grandes; tela cheia (spec 04, seção 8.2).
 
 Nenhum ponto pendente no momento.
