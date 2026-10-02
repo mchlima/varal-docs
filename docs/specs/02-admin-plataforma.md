@@ -60,8 +60,8 @@ Dar à equipe do Varal um painel próprio, separado dos clientes, para criar e a
 - **RN-02.09** Criar organização exige: nome da organização, nome da primeira unidade, nome e e-mail do dono. Na mesma transação são criados a organização (com `access_code`), a unidade com o template padrão de estações e etapas (spec 03), o usuário dono sem senha e o convite por e-mail.
 - **RN-02.10** O e-mail do dono não pode já existir em outra organização.
 - **RN-02.11** Situações da assinatura: `pilot`, `active`, `suspended`, `canceled`. Toda mudança exige um motivo, que vai para a auditoria (e fica guardado na organização em `suspended` e `canceled`). Suspender só a partir de `pilot` ou `active`; reativar a partir de `suspended` ou `canceled`; pedir a situação atual responde 409. Na criação, a situação é escolhida (padrão `active`).
-- **RN-02.12** Efeitos de `suspended` e `canceled`: não é possível abrir turno; turnos abertos podem ser operados até o fechamento; o painel do dono mostra uma faixa explicando a situação. Reativar volta a `active` ou `pilot`.
-- Detalhe da organização mostra: situação, data de criação, dono (com situação do convite), unidades, número de colaboradores ativos, últimos 10 turnos, último acesso de qualquer usuário, comunicados não lidos.
+- **RN-02.12** *(ajustada em 2026-10-02)* Efeitos de `suspended` e `canceled`: não é possível abrir caixa (spec 05, RN-05.24); caixas abertos podem ser operados até o fechamento; o painel do dono mostra uma faixa explicando a situação. Reativar volta a `active` ou `pilot`.
+- Detalhe da organização mostra: situação, data de criação, dono (com situação do convite), unidades, número de colaboradores ativos, últimos 10 dias de operação (unidade, dia, venda), último acesso de qualquer usuário, comunicados não lidos.
 
 ## 5. Comunicados
 
@@ -78,14 +78,14 @@ Painel com filtro de período (padrão: últimos 30 dias), em horário de Brasí
 | Métrica | Definição |
 | --- | --- |
 | Organizações por situação | Contagem atual por situação da assinatura |
-| Organizações ativas no período | Com pelo menos um turno aberto no período |
-| Turnos | Turnos fechados no período, total e por semana |
+| Organizações ativas no período | Com pelo menos um caixa aberto no período |
+| Dias de operação | Pares (unidade, dia de operação) com caixa aberto no período, total e por semana; substitui a métrica de turnos (2026-10-02) |
 | Comandas | Comandas pagas, penduradas ou quitadas no período |
 | Valor vendido registrado | Soma do total das comandas pagas, penduradas ou quitadas no período, em reais |
 | Ticket médio | Valor vendido / comandas |
-| Uso por organização | Tabela com turnos, comandas, valor vendido e último acesso, ordenável |
+| Uso por organização | Tabela com dias de operação, comandas, valor vendido e último acesso, ordenável |
 
-As métricas usam só dados já existentes; não há tabela própria no MVP. Turnos, comandas e valores aparecem zerados até as specs 04 a 06 estarem implementadas. O último acesso vem das sessões, que são apagadas 30 dias depois de vencidas.
+As métricas usam só dados já existentes; não há tabela própria no MVP. Dias de operação, comandas e valores aparecem zerados até as specs 04 a 06 estarem implementadas. O último acesso vem das sessões, que são apagadas 30 dias depois de vencidas.
 
 ## 7. Entrar como
 
@@ -182,7 +182,7 @@ Ações sem permissão não aparecem na interface.
 - **CA-02.02** Dar a um usuário Leitura a permissão avulsa `organizations:create` permite que ele crie organizações, sem ganhar outras permissões.
 - **CA-02.03** A API recusa desativar o último Super admin ativo.
 - **CA-02.04** Criar uma organização gera unidade com o template padrão, `access_code` único e e-mail de convite; o dono define a senha pelo link e entra no painel.
-- **CA-02.05** Suspender uma organização impede abrir turno (erro `ORGANIZATION_SUSPENDED`) e mostra a faixa no painel do dono; um turno que já estava aberto continua operando até ser fechado.
+- **CA-02.05** *(ajustado)* Suspender uma organização impede abrir caixa (erro `ORGANIZATION_SUSPENDED`) e mostra a faixa no painel do dono; um caixa que já estava aberto continua operando até ser fechado.
 - **CA-02.06** Um comunicado agendado para todas as organizações aparece para os donos na data marcada e some da faixa depois de marcado como lido.
 - **CA-02.07** Durante um "entrar como", uma alteração no cardápio fica na auditoria com o admin em `impersonator_id`, e a faixa de aviso fica visível em todas as telas.
 - **CA-02.08** A sessão "entrar como" termina quando o admin encerra (no admin ou pelo "Encerrar acesso" no app), sem prazo; depois disso, as requisições com aquele cookie são recusadas.

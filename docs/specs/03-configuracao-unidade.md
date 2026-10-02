@@ -2,7 +2,7 @@
 
 ## 1. Objetivo
 
-Permitir que o dono deixe cada barraca pronta para operar: unidades, estações, fluxo de etapas, cardápio com modificadores e colaboradores com suas permissões.
+Permitir que o dono deixe cada barraca pronta para operar: unidades, estações, fluxo de etapas, cardápio com modificadores e tabelas de preço, e colaboradores com suas permissões.
 
 ## 2. Escopo
 
@@ -12,6 +12,7 @@ Permitir que o dono deixe cada barraca pronta para operar: unidades, estações,
 - Estações e fluxo de etapas configuráveis, com template padrão.
 - Roteamento de produtos para a estação de preparo.
 - Cardápio: categorias, produtos, grupos de modificadores, modificadores, esgotado.
+- Tabelas de preço salvas (ex.: "Evento", "Casamento"), com preço opcional por produto.
 - Colaboradores: cadastro, permissões por unidade, redefinição de senha, link e QR de acesso.
 
 **Fora**
@@ -24,9 +25,9 @@ Permitir que o dono deixe cada barraca pronta para operar: unidades, estações,
 ## 3. Unidades
 
 - **RN-03.01** A organização tem pelo menos uma unidade. O dono cria, renomeia, ativa e desativa unidades.
-- **RN-03.02** Uma unidade com turno aberto não pode ser desativada (`SHIFT_OPEN`). A última unidade ativa da organização também não (`LAST_ACTIVE_UNIT`).
-- **RN-03.03** Uma unidade nova nasce com o template padrão de estações e fluxo (seção 4.4) e com o cardápio vazio.
-- Configuração por unidade: `late_after_minutes` (padrão 15, de 1 a 240, alterável pelo dono), tempo a partir do qual um item na estação aparece como atrasado. O padrão de 15 minutos foi confirmado com o piloto.
+- **RN-03.02** *(ajustada em 2026-10-02)* Uma unidade com caixa aberto não pode ser desativada (`CASH_REGISTER_OPEN`), nem com comandas em `open` ou `closing` (`UNIT_HAS_OPEN_TABS`). A última unidade ativa da organização também não (`LAST_ACTIVE_UNIT`).
+- **RN-03.03** *(ajustada em 2026-10-02)* Uma unidade nova nasce com o template padrão de estações e fluxo (seção 4.4), com um caixa chamado "Caixa 1" (spec 05, RN-05.17), com o cardápio vazio e sem tabelas de preço (vigente: "Normal").
+- Configuração por unidade: `late_after_minutes` (padrão 15, de 1 a 240, alterável pelo dono). Desde 2026-10-02 ele é só o **padrão** dos limites de tempo das estações novas (RN-03.25); o tempo vale por estação. O padrão de 15 minutos foi confirmado com o piloto.
 
 ## 4. Estações e fluxo
 
@@ -41,6 +42,7 @@ Uma estação é a tela que um colaborador abre no aparelho. Tipos:
 
 - **RN-03.04** Cada unidade tem pelo menos uma estação `counter` e uma estação `queue`.
 - Campos: nome (único na unidade), tipo, ordem de exibição, ativa.
+- **RN-03.25** *(2026-10-02)* Cada estação `queue` tem dois limites de tempo, contados desde o envio do pedido, alteráveis pelo dono: **atenção** (`attention_after_minutes`) e **atraso** (`late_after_minutes`, de 1 a 240). Estação nova recebe o atraso padrão da unidade e a atenção na metade dele, arredondada para baixo (padrão: atenção em 7 e atraso em 15 minutos). A atenção vai de 1 até o atraso − 1 (`INVALID_TIME_LIMITS`). Mudar os limites vale na hora para os cartões na tela (spec 04, RN-04.23 e RN-04.46).
 - Estações nunca são apagadas, só desativadas. Uma estação usada pelo fluxo, por categoria ou por produto não pode ser desativada nem virar `counter` (`STATION_IN_USE`).
 
 ### 4.2 Fluxo de etapas
@@ -57,8 +59,8 @@ Cada etapa define em qual estação o item aparece enquanto estiver nela:
 
 - **RN-03.05** O fluxo tem de 2 a 8 etapas. A última é sempre a única com destino `none` e é marcada como final.
 - **RN-03.06** Toda etapa não final aponta para uma estação do tipo `queue`.
-- **RN-03.07** Com turno aberto na unidade, o fluxo e as estações não podem ser alterados. A interface explica o motivo e sugere fechar o turno.
-- O fluxo é salvo inteiro de uma vez, conferindo a `version` da unidade. Etapas que saem do fluxo são arquivadas (`archived_at`), não apagadas, porque itens de turnos passados apontam para elas. Erros de validação voltam juntos em `INVALID_WORKFLOW`.
+- **RN-03.07** *(ajustada em 2026-10-02)* O fluxo e as estações não podem ser alterados com caixa aberto na unidade (`CASH_REGISTER_OPEN`) nem com itens em etapas não finais, de comandas que seguem abertas (`ITEMS_IN_PROGRESS`). A interface explica o motivo e sugere fechar o caixa ou concluir os itens.
+- O fluxo é salvo inteiro de uma vez, conferindo a `version` da unidade. Etapas que saem do fluxo são arquivadas (`archived_at`), não apagadas, porque itens já vendidos apontam para elas. Erros de validação voltam juntos em `INVALID_WORKFLOW`.
 
 ### 4.3 Roteamento
 
@@ -93,8 +95,8 @@ Exemplo de personalização: uma barraca de espeto e pastel cria a estação Fri
 - Produto: categoria, nome, descrição curta opcional (até 120 caracteres), preço em centavos, estação de preparo opcional, ordem, ativo, esgotado.
 - **RN-03.09** Preço de produto é maior ou igual a zero.
 - **RN-03.10** Produto inativo não aparece no balcão. Produto esgotado aparece no balcão bloqueado, com a marca "Esgotado".
-- **RN-03.11** Marcar e desmarcar esgotado pode ser feito pelo dono e por qualquer colaborador com acesso a uma estação da unidade, a qualquer momento, inclusive com turno aberto. A mudança chega a todos os balcões em tempo real.
-- **RN-03.12** Alterar preço, nome ou modificadores com turno aberto é permitido e vale para pedidos novos; itens já pedidos guardam o preço do momento.
+- **RN-03.11** Marcar e desmarcar esgotado pode ser feito pelo dono e por qualquer colaborador com acesso a uma estação da unidade, a qualquer momento, inclusive com caixa aberto. A mudança chega a todos os balcões em tempo real.
+- **RN-03.12** Alterar preço, nome ou modificadores com caixa aberto é permitido e vale para pedidos novos; itens já pedidos guardam o preço do momento. O preço do produto é o **preço normal**, usado quando a tabela vigente é "Normal" e quando o produto não tem preço na tabela vigente (seção 5.3).
 
 ### 5.2 Modificadores
 
@@ -104,6 +106,17 @@ Exemplo de personalização: uma barraca de espeto e pastel cria a estação Fri
 - Um grupo de modificadores pode ser apagado de verdade (com as opções), porque o item do pedido guarda a cópia do que foi escolhido (spec 04, RN-04.18).
 - **RN-03.14** Remoção de ingrediente é modelada como modificador com acréscimo zero (ex.: grupo "Retirar", mínimo 0, máximo 5, opções "Sem cebola", "Sem farofa").
 - Além dos modificadores, cada item aceita uma observação livre (até 140 caracteres) no momento do pedido.
+
+### 5.3 Tabelas de preço
+
+Substituem os preços do turno (decisão de 2026-10-02): em vez de digitar preços a cada evento, o dono preenche uma vez tabelas nomeadas e depois só escolhe qual vale (spec 04, seção 3.2).
+
+- **RN-03.20** A unidade pode ter tabelas de preço: nome (1 a 30 caracteres, único na unidade; "Normal" é reservado para o preço normal e não pode ser usado), ordem e ativa. Exemplos: "Evento", "Casamento", "Delivery".
+- **RN-03.21** Cada produto tem o preço normal (RN-03.09) e, opcionalmente, um preço em cada tabela (maior ou igual a zero). Produto sem preço numa tabela usa o preço normal quando ela estiver vigente. Os acréscimos dos modificadores não mudam por tabela.
+- **RN-03.22** O preço por tabela é preenchido em dois lugares: no editor do produto (um campo por tabela ativa, vazio = preço normal) e na tela da tabela, que lista todos os produtos ativos da unidade por categoria, com o preço normal ao lado do campo da tabela, para preencher tudo de uma vez.
+- **RN-03.23** Tabelas não são apagadas, só desativadas, porque itens vendidos apontam para elas (spec 04, RN-04.18). Não se desativa a tabela vigente da unidade nem a de um evento agendado ou em andamento (`PRICE_LIST_IN_USE`). Tabela inativa não aparece para escolha.
+- **RN-03.24** Alterar preços de uma tabela, inclusive a vigente, é permitido a qualquer momento e vale para itens novos; itens já enviados guardam o preço do momento.
+- Só o dono cadastra e edita tabelas. Quem troca a tabela vigente está na spec 04, RN-04.31.
 
 ## 6. Colaboradores
 
@@ -119,11 +132,17 @@ Exemplo de personalização: uma barraca de espeto e pastel cria a estação Fri
 
 Toda tabela abaixo tem `organization_id`.
 
-**stations**: `unit_id`, `name`, `kind` (`counter`, `queue`), `sort_order`, `active`. Único `(unit_id, lower(name))`.
+**stations**: `unit_id`, `name`, `kind` (`counter`, `queue`), `sort_order`, `active`, `attention_after_minutes int` e `late_after_minutes int` (só `queue`, RN-03.25; a migração preenche as estações existentes com o `late_after_minutes` da unidade e a metade dele). Único `(unit_id, lower(name))`.
 
 **workflow_stages**: `unit_id`, `name`, `sort_order`, `target` (`product_station`, `fixed_station`, `none`), `station_id` (obrigatório só para `fixed_station`), `is_final bool`, `archived_at`. Único `(unit_id, sort_order)` entre as não arquivadas.
 
 **units** ganha `version` (fluxo e configuração) e `menu_version` (enviada no `menu.updated`); **products** ganha `version`.
+
+**price_lists**: `unit_id`, `name`, `sort_order`, `active`. Único `(unit_id, lower(name))`.
+
+**product_prices**: `price_list_id`, `product_id`, `price_cents`. Único por par. Sem linha = preço normal (RN-03.21).
+
+**units** ganha também `current_price_list_id` (tabela vigente) e os campos de operação da spec 04, seção 6.
 
 **categories**: `unit_id`, `name`, `sort_order`, `default_station_id`, `active`.
 
@@ -144,7 +163,10 @@ Todas exigem perfil dono, exceto onde indicado.
 | `GET/POST /api/v1/units`, `PATCH /api/v1/units/{id}` | Unidades |
 | `GET /api/v1/units/{id}/stations`, `POST`, `PATCH /stations/{id}` | Estações |
 | `GET /api/v1/units/{id}/workflow`, `PUT /api/v1/units/{id}/workflow` | Fluxo completo, salvo de uma vez (validado pelas RN-03.05 a 03.07). Leitura também para colaboradores da unidade (o balcão mostra as etapas); escrita só do dono |
-| `GET /api/v1/units/{id}/menu` | Cardápio completo da unidade (dono e colaboradores da unidade) |
+| `GET /api/v1/units/{id}/menu` | Cardápio completo da unidade (dono e colaboradores da unidade), com as tabelas ativas, os preços de cada produto por tabela e o preço efetivo (o da tabela efetiva da unidade, spec 04, RN-04.32) |
+| `GET/POST /api/v1/units/{id}/price-lists`, `PATCH /api/v1/price-lists/{id}` | Tabelas de preço: nome, ordem, ativa (RN-03.20, RN-03.23) |
+| `PUT /api/v1/price-lists/{id}/prices` | Preços de vários produtos numa tabela (`[{ productId, priceCents \| null }]`, `null` remove); RN-03.22 |
+| `PUT /api/v1/products/{id}/prices` | Preços de um produto em várias tabelas (`[{ priceListId, priceCents \| null }]`) |
 | `POST/PATCH /api/v1/categories`, `PUT /api/v1/units/{id}/categories/order` | Categorias e ordenação |
 | `POST/PATCH /api/v1/products`, `PUT /api/v1/categories/{id}/products/order` | Produtos e ordenação |
 | `POST /api/v1/products/{id}/sold-out`, `DELETE /api/v1/products/{id}/sold-out` | Esgotado (dono e colaboradores da unidade) |
@@ -160,16 +182,17 @@ Eventos em tempo real (sala `unit:{unitId}`):
 | Evento | Quando | Payload |
 | --- | --- | --- |
 | `product.sold_out_changed` | Produto marcado ou desmarcado como esgotado | `productId`, `soldOut` |
-| `menu.updated` | Qualquer outra alteração no cardápio | `unitId`, `version` (o app recarrega o cardápio) |
+| `menu.updated` | Qualquer outra alteração no cardápio, inclusive nas tabelas de preço | `unitId`, `version` (o app recarrega o cardápio) |
 | `unit.config_updated` | Alteração na unidade, nas estações ou no fluxo | `unitId`, `version` (o app recarrega a configuração) |
 
 ## 9. Telas (painel do dono)
 
 | Tela | Conteúdo e ações |
 | --- | --- |
-| Unidades | Lista, criar, renomear, ativar/desativar, tempo de atraso |
-| Estações e fluxo | Lista de estações; editor do fluxo com etapas em ordem, destino de cada etapa e etapa final; aviso de bloqueio com turno aberto |
-| Cardápio | Categorias em abas ou lista; produtos com preço, estação, esgotado; arrastar para ordenar; editor de produto com grupos de modificadores |
+| Unidades | Lista, criar, renomear, ativar/desativar, tempo de atraso; atalhos para estações e fluxo e para os caixas da unidade (spec 05) |
+| Estações e fluxo | Lista de estações, com os limites de atenção e atraso de cada estação de fila (RN-03.25); editor do fluxo com etapas em ordem, destino de cada etapa e etapa final; aviso de bloqueio com caixa aberto ou itens em preparo (RN-03.07) |
+| Cardápio | Categorias em abas ou lista; produtos com preço normal, estação, esgotado; arrastar para ordenar; editor de produto com grupos de modificadores e a seção "Preços por tabela" (RN-03.22) |
+| Tabelas de preço (`/painel/cardapio/tabelas`) | Lista das tabelas com quantos produtos têm preço em cada uma e qual está vigente; criar, renomear, desativar; tela da tabela com todos os produtos, preço normal ao lado e campo da tabela, salvando de uma vez |
 | Colaboradores | Lista com situação; cadastro; permissões por unidade (estações e caixa); redefinir senha com as três opções de envio |
 | Acesso da equipe | Código, link com botão copiar, QR code grande |
 
@@ -179,12 +202,16 @@ No balcão e nas estações, o colaborador pode marcar produto como esgotado por
 
 - **CA-03.01** Uma unidade nova tem as estações Balcão, Cozinha e Balcão de entrega e as etapas Recebido, Preparando, Pronto e Entregue, como na seção 4.4.
 - **CA-03.02** A API recusa salvar um fluxo sem etapa final, com mais de uma etapa final ou com etapa não final apontando para estação `counter`.
-- **CA-03.03** Com turno aberto, a API recusa alterar fluxo e estações com o erro `SHIFT_OPEN`.
+- **CA-03.03** *(ajustado)* Com caixa aberto, a API recusa alterar fluxo e estações com o erro `CASH_REGISTER_OPEN`; sem caixa aberto, mas com item em preparo de uma comanda que segue aberta, com `ITEMS_IN_PROGRESS`.
 - **CA-03.04** Um produto com estação própria vai para essa estação; sem ela, vai para a da categoria.
 - **CA-03.05** Marcar um produto como esgotado no celular da cozinha bloqueia o produto no balcão em até 2 segundos, sem recarregar a tela.
 - **CA-03.06** O balcão não permite enviar um item com grupo obrigatório sem escolha.
 - **CA-03.07** Dois colaboradores com o mesmo username na mesma organização são recusados; em organizações diferentes, aceitos.
 - **CA-03.08** O link de redefinição gerado pelo dono abre a tela de nova senha e funciona uma única vez.
+- **CA-03.09** Uma tabela "Evento" com preço só para o espeto de carne faz o espeto de carne custar o preço da tabela e os demais produtos o preço normal quando ela estiver vigente.
+- **CA-03.10** A API recusa criar uma tabela chamada "Normal" ou com nome repetido na unidade, e recusa desativar a tabela vigente (`PRICE_LIST_IN_USE`).
+- **CA-03.11** Uma unidade nova tem o caixa "Caixa 1" ativo e nenhuma tabela de preço.
+- **CA-03.12** Uma estação nova numa unidade com atraso padrão de 15 minutos nasce com atenção em 7 e atraso em 15; a API recusa atenção maior ou igual ao atraso com `INVALID_TIME_LIMITS`.
 
 ## 11. Questões abertas
 

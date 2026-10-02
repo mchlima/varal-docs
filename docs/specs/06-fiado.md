@@ -2,7 +2,7 @@
 
 ## 1. Objetivo
 
-Permitir que a barraca feche uma comanda sem receber na hora, em nome de um cliente identificado, e receba depois, em qualquer turno, mantendo a lista do que está a receber.
+Permitir que a barraca feche uma comanda sem receber na hora, em nome de um cliente identificado, e receba depois, em qualquer dia, mantendo a lista do que está a receber.
 
 ## 2. Escopo
 
@@ -11,8 +11,8 @@ Permitir que a barraca feche uma comanda sem receber na hora, em nome de um clie
 - Cadastro de clientes por unidade.
 - Pendurar comanda.
 - Lista de valores a receber.
-- Quitação total ou em partes, em qualquer turno da unidade.
-- Uso no turno contratado em que o contratante paga o consumo no final.
+- Quitação total ou em partes, em qualquer caixa aberto da unidade.
+- Uso no evento contratado em que o contratante paga o consumo no final.
 
 **Fora**
 
@@ -36,11 +36,11 @@ Permitir que a barraca feche uma comanda sem receber na hora, em nome de um clie
 - **RN-06.05** Pendurar exige um cliente da unidade. A comanda guarda o `customer_id` e passa a `on_credit`.
 - **RN-06.06** Pagamentos já feitos antes de pendurar continuam valendo; o valor pendurado é o saldo (total − pagamentos).
 - **RN-06.07** Comanda pendurada não aceita mais pedidos, descontos nem cancelamentos de item.
-- **RN-06.08** No turno contratado com modalidade `consumption_billed`, a comanda do contratante é pendurada em um cliente com o nome do contratante. Nesse caso a comanda pode ser pendurada sem escolher cliente: a API usa um cliente com o nome do contratante e referência "Contratante de turno", criado uma vez e reaproveitado. Fora desse caso, pendurar exige cliente (`CUSTOMER_REQUIRED`).
+- **RN-06.08** *(ajustada em 2026-10-02)* Numa comanda ligada a um evento com modalidade `consumption_billed` (spec 04, RN-04.15), a comanda do contratante é pendurada em um cliente com o nome do contratante. Nesse caso a comanda pode ser pendurada sem escolher cliente: a API usa um cliente com o nome do contratante e referência "Contratante de evento", criado uma vez e reaproveitado (os clientes já criados com a referência antiga "Contratante de turno" continuam sendo reaproveitados). Fora desse caso, pendurar exige cliente (`CUSTOMER_REQUIRED`).
 
 ## 5. Quitação
 
-- **RN-06.09** Quitar exige um turno aberto e um caixa aberto na unidade da comanda; o pagamento entra nesse caixa e é marcado como quitação de fiado (`is_credit_settlement`).
+- **RN-06.09** *(ajustada em 2026-10-02)* Quitar exige um caixa aberto na unidade da comanda (`NO_CASH_REGISTER_OPEN`); o pagamento entra na abertura em andamento desse caixa (spec 05, RN-05.05), no dia de operação em que foi recebido, e é marcado como quitação de fiado (`is_credit_settlement`).
 - **RN-06.10** A quitação pode ser parcial: cada pagamento reduz o saldo. Quando o saldo chega a zero, a comanda passa a `settled`.
 - **RN-06.11** As formas de pagamento e o troco seguem a spec 05.
 - **RN-06.12** Estornar uma quitação segue a spec 05; se a comanda estava `settled`, volta a `on_credit`.
@@ -83,7 +83,7 @@ Eventos (sala `unit`): `tab.updated` ao pendurar e a cada quitação.
 
 - **CA-06.01** Uma comanda em `closing` de R$ 120,00 com R$ 20,00 já pagos, pendurada em um cliente, aparece no fiado com saldo de R$ 100,00.
 - **CA-06.02** A API recusa pendurar comanda em `open`.
-- **CA-06.03** Uma quitação de R$ 60,00 feita no turno seguinte entra no caixa desse turno, deixa saldo de R$ 40,00 e a comanda continua `on_credit`; uma segunda de R$ 40,00 deixa a comanda `settled`.
+- **CA-06.03** *(ajustado)* Uma quitação de R$ 60,00 feita num dia seguinte entra no caixa aberto em que foi recebida, deixa saldo de R$ 40,00 e a comanda continua `on_credit`; uma segunda de R$ 40,00 deixa a comanda `settled`.
 - **CA-06.04** Cliente de uma unidade não aparece na busca de outra unidade da mesma organização.
 - **CA-06.05** A API recusa excluir cliente com saldo a receber; sem saldo, o cliente é anonimizado e as comandas continuam no histórico, com o nome do cliente trocado por "Cliente removido".
 - **CA-06.06** Um cliente pode ser cadastrado só com o nome; dois clientes com o mesmo nome aparecem na busca com seus dados de identificação, e telefone ou CPF repetido na mesma unidade é recusado.
@@ -95,7 +95,7 @@ Nenhuma no momento.
 ## Decisões da implementação (fase 6)
 
 - Pendurar só em `closing` e com saldo maior que zero; a comanda conta nas métricas no momento em que é pendurada.
-- Quitar exige um turno e um caixa abertos na unidade (não precisa ser o turno da comanda; sem turno, `NO_SHIFT_OPEN`). A quitação pode ser parcial; com saldo zero a comanda vai a `settled`. Estornar uma quitação volta a comanda a `on_credit`; pagamentos feitos antes de pendurar não podem ser estornados.
+- Quitar exige um caixa aberto na unidade (não precisa ser o do dia da comanda; sem caixa aberto, `NO_CASH_REGISTER_OPEN`, que substitui o antigo `NO_SHIFT_OPEN`). A quitação pode ser parcial; com saldo zero a comanda vai a `settled`. Estornar uma quitação volta a comanda a `on_credit`; pagamentos feitos antes de pendurar não podem ser estornados.
 - O aviso de nome repetido (RN-06.02) é feito pelo app, que busca o nome antes de cadastrar.
 - A auditoria registra só quais dados de identificação o cliente tem, nunca os valores (o log não pode ser apagado).
 - Os eventos e a comanda resumida mostram nome e referência do cliente, nunca telefone ou CPF.
