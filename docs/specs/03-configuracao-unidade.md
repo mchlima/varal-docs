@@ -27,7 +27,7 @@ Permitir que o dono deixe cada barraca pronta para operar: unidades, estações,
 - **RN-03.01** A organização tem pelo menos uma unidade. O dono cria, renomeia, ativa e desativa unidades.
 - **RN-03.02** *(ajustada em 2026-10-02)* Uma unidade com caixa aberto não pode ser desativada (`CASH_REGISTER_OPEN`), nem com comandas em `open` ou `closing` (`UNIT_HAS_OPEN_TABS`). A última unidade ativa da organização também não (`LAST_ACTIVE_UNIT`).
 - **RN-03.03** *(ajustada em 2026-10-02)* Uma unidade nova nasce com o template padrão de estações e fluxo (seção 4.4), com um caixa chamado "Caixa 1" (spec 05, RN-05.17), com o cardápio vazio e sem tabelas de preço (vigente: "Normal").
-- Configuração por unidade: `late_after_minutes` (padrão 15, de 1 a 240, alterável pelo dono), tempo a partir do qual um item na estação aparece como atrasado. O padrão de 15 minutos foi confirmado com o piloto.
+- Configuração por unidade: `late_after_minutes` (padrão 15, de 1 a 240, alterável pelo dono). Desde 2026-10-02 ele é só o **padrão** dos limites de tempo das estações novas (RN-03.25); o tempo vale por estação. O padrão de 15 minutos foi confirmado com o piloto.
 
 ## 4. Estações e fluxo
 
@@ -42,6 +42,7 @@ Uma estação é a tela que um colaborador abre no aparelho. Tipos:
 
 - **RN-03.04** Cada unidade tem pelo menos uma estação `counter` e uma estação `queue`.
 - Campos: nome (único na unidade), tipo, ordem de exibição, ativa.
+- **RN-03.25** *(2026-10-02)* Cada estação `queue` tem dois limites de tempo, contados desde o envio do pedido, alteráveis pelo dono: **atenção** (`attention_after_minutes`) e **atraso** (`late_after_minutes`, de 1 a 240). Estação nova recebe o atraso padrão da unidade e a atenção na metade dele, arredondada para baixo (padrão: atenção em 7 e atraso em 15 minutos). A atenção vai de 1 até o atraso − 1 (`INVALID_TIME_LIMITS`). Mudar os limites vale na hora para os cartões na tela (spec 04, RN-04.23 e RN-04.46).
 - Estações nunca são apagadas, só desativadas. Uma estação usada pelo fluxo, por categoria ou por produto não pode ser desativada nem virar `counter` (`STATION_IN_USE`).
 
 ### 4.2 Fluxo de etapas
@@ -131,7 +132,7 @@ Substituem os preços do turno (decisão de 2026-10-02): em vez de digitar preç
 
 Toda tabela abaixo tem `organization_id`.
 
-**stations**: `unit_id`, `name`, `kind` (`counter`, `queue`), `sort_order`, `active`. Único `(unit_id, lower(name))`.
+**stations**: `unit_id`, `name`, `kind` (`counter`, `queue`), `sort_order`, `active`, `attention_after_minutes int` e `late_after_minutes int` (só `queue`, RN-03.25; a migração preenche as estações existentes com o `late_after_minutes` da unidade e a metade dele). Único `(unit_id, lower(name))`.
 
 **workflow_stages**: `unit_id`, `name`, `sort_order`, `target` (`product_station`, `fixed_station`, `none`), `station_id` (obrigatório só para `fixed_station`), `is_final bool`, `archived_at`. Único `(unit_id, sort_order)` entre as não arquivadas.
 
@@ -189,7 +190,7 @@ Eventos em tempo real (sala `unit:{unitId}`):
 | Tela | Conteúdo e ações |
 | --- | --- |
 | Unidades | Lista, criar, renomear, ativar/desativar, tempo de atraso; atalhos para estações e fluxo e para os caixas da unidade (spec 05) |
-| Estações e fluxo | Lista de estações; editor do fluxo com etapas em ordem, destino de cada etapa e etapa final; aviso de bloqueio com caixa aberto ou itens em preparo (RN-03.07) |
+| Estações e fluxo | Lista de estações, com os limites de atenção e atraso de cada estação de fila (RN-03.25); editor do fluxo com etapas em ordem, destino de cada etapa e etapa final; aviso de bloqueio com caixa aberto ou itens em preparo (RN-03.07) |
 | Cardápio | Categorias em abas ou lista; produtos com preço normal, estação, esgotado; arrastar para ordenar; editor de produto com grupos de modificadores e a seção "Preços por tabela" (RN-03.22) |
 | Tabelas de preço (`/painel/cardapio/tabelas`) | Lista das tabelas com quantos produtos têm preço em cada uma e qual está vigente; criar, renomear, desativar; tela da tabela com todos os produtos, preço normal ao lado e campo da tabela, salvando de uma vez |
 | Colaboradores | Lista com situação; cadastro; permissões por unidade (estações e caixa); redefinir senha com as três opções de envio |
@@ -210,6 +211,7 @@ No balcão e nas estações, o colaborador pode marcar produto como esgotado por
 - **CA-03.09** Uma tabela "Evento" com preço só para o espeto de carne faz o espeto de carne custar o preço da tabela e os demais produtos o preço normal quando ela estiver vigente.
 - **CA-03.10** A API recusa criar uma tabela chamada "Normal" ou com nome repetido na unidade, e recusa desativar a tabela vigente (`PRICE_LIST_IN_USE`).
 - **CA-03.11** Uma unidade nova tem o caixa "Caixa 1" ativo e nenhuma tabela de preço.
+- **CA-03.12** Uma estação nova numa unidade com atraso padrão de 15 minutos nasce com atenção em 7 e atraso em 15; a API recusa atenção maior ou igual ao atraso com `INVALID_TIME_LIMITS`.
 
 ## 11. Questões abertas
 

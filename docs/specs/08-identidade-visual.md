@@ -43,6 +43,7 @@ Os neutros têm leve tom esverdeado-acinzentado para não parecerem cinza padrã
 | Novo | `#BE185D` | `#FFFFFF` | ponto cheio | Usa a primária |
 | Preparando | `#FDE68A` | `#713F12` | relógio | |
 | Pronto | `#BBF7D0` | `#14532D` | confirmação | |
+| Atenção | `#FDBA74` | `#7C2D12` | ampulheta | Tempo do cartão da estação entre o limite de atenção e o de atraso (spec 04, RN-04.46). Laranja mais saturado que o amarelo de "Preparando" e sem o tom rosado do "Atrasado"; contraste do texto 5,6:1 (AA). Tokens `--color-status-attention-bg` e `--color-status-attention-ink` |
 | Atrasado | `#FECACA` | `#7F1D1D` | exclamação | Nunca vermelho sólido, para não se confundir com a primária |
 | Cancelado | `#E2E8F0` | `#334155` | — | Texto riscado |
 
@@ -70,7 +71,7 @@ Erro de formulário usa `#B91C1C` em texto sobre fundo branco, com ícone e mens
 | Botão de confirmação de valor | Mostra valor e forma: "Confirmar R$ 46,00 no Pix" |
 | Ação destrutiva | Texto vermelho escuro em menu secundário, sempre com confirmação na própria tela (nada de diálogo do navegador) |
 | Cartão de comanda | Número grande à esquerda, nome e resumo ao centro, total à direita; borda esquerda primária quando selecionado |
-| Cartão de pedido (estação) | Um cartão por pedido, nunca por item (spec 04, RN-04.40). Cabeçalho com número da comanda em 24 px, nome, "Adicional" quando for, e tempo decorrido em algarismos de largura fixa; o fundo do cabeçalho usa a cor de status ("Novo" até ser tocado, neutro, "Atrasado"). Linhas com quantidade e produto em 20 px negrito, modificadores logo abaixo e observação em bloco com fundo `primary-soft`, texto `primary-deep` e ícone; chip da etapa em cada linha; linha feita riscada com ícone de confirmação; linha cancelada riscada com o chip "Cancelado". Botão de avanço do pedido no estilo secundário (contorno), ocupando a largura do cartão, com pelo menos 56 px: com vários cartões na tela, nenhum deles usa o botão preenchido com a primária (CA-08.02) |
+| Cartão de pedido (estação) | Um cartão por pedido, nunca por item (spec 04, RN-04.40). Cabeçalho com número da comanda em 24 px, nome, "Adicional" quando for, e tempo decorrido em algarismos de largura fixa; o fundo do cabeçalho usa a cor de status ("Novo" até ser tocado; depois o nível de tempo: neutro, "Atenção" ou "Atrasado"), sempre com o texto do nível e o ícone, nunca só a cor, porque laranja, amarelo e vermelho claros se confundem no sol. Linhas com quantidade e produto em 20 px negrito, modificadores logo abaixo e observação em bloco com fundo `primary-soft`, texto `primary-deep` e ícone; chip da etapa em cada linha; linha feita riscada com ícone de confirmação; linha cancelada riscada com o chip "Cancelado". Botão de avanço do pedido no estilo secundário (contorno), ocupando a largura do cartão, com pelo menos 56 px: com vários cartões na tela, nenhum deles usa o botão preenchido com a primária (CA-08.02) |
 | Chip de status | Cantos de 6 px, texto em maiúsculas com espaçamento leve, ícone de 14 px |
 | Faixa de operação (balcão) | Caixa aberto, tabela de preço efetiva e evento em andamento (spec 04, seção 8.1). Tabela diferente de "Normal" e evento usam fundo `primary-soft` e texto `primary-deep`, com ícone; tabela "Normal" em texto neutro |
 | Faixa de aviso | Topo da tela, largura total: sem conexão, relatório com valores parciais, organização suspensa, "entrar como" (esta última em cor própria, escura, para nunca passar despercebida) |
@@ -120,6 +121,7 @@ Versão provisória (2026-10-01), até haver um logo definitivo. Os arquivos fic
 - **CA-08.03** Todos os status aparecem com texto e ícone.
 - **CA-08.04** Os alvos de toque das telas de balcão e estação medem pelo menos 48 × 48 px.
 - **CA-08.05** O botão "Painel" e o "Trocar de estação" das telas de operação (spec 01, RN-01.25) medem pelo menos 48 × 48 px e têm texto, não só ícone.
+- **CA-08.06** O par de cor de "Atenção" passa AA no teste automatizado dos tokens, e o cabeçalho em atenção mostra o texto "Atenção" e o ícone de ampulheta.
 
 ## 11. Questões abertas
 

@@ -197,8 +197,8 @@ Ordem: `varal-docs` (specs) → `varal-web-api` → `varal-panel-web` e `varal-a
 | Repositório | Entregas |
 | --- | --- |
 | `varal-docs` | Specs 01 a 08 e este plano (feito nesta branch); `docs/agents/` sem `Shift` no glossário de exemplo e com os escopos novos; `AGENTS.md` regenerado em cada repositório |
-| `varal-web-api` | Migração de dados (abaixo); caixas cadastrados e aberturas de caixa (spec 05); dia de operação e numeração por dia (RN-04.09, RN-04.29); tabelas de preço e tabela vigente (RN-03.20 a 03.24, RN-04.31 a 04.33); eventos (RN-04.34 a 04.37); `GET /units/{id}/operation` e `unit.operation_updated`; fila da estação agrupada por pedido e avanço do pedido inteiro (RN-04.39 a 04.45); fechamento de caixa com pendentes, preparo e evento (RN-05.28, RN-05.29); relatórios por dia, caixa e evento (spec 07); métricas do admin por dia de operação (spec 02); seed com "Caixa 1" e uma tabela "Evento"; `openapi.json`; testes de todos os CA novos e reescritos |
-| `varal-panel-web` | Início do painel orientado à tarefa e menus novos (spec 01, seção 14.2); botão "Painel" e "Trocar de estação" no balcão, nas estações e em `/estacoes` (RN-01.24 a 01.27); telas de caixas (`/caixas`, abrir, fechar) e cadastro de caixas; faixa de operação do balcão e estado sem caixa aberto; troca da tabela vigente; tabelas de preço no cardápio e no editor de produto; eventos; tela da estação no formato KDS (cartão por pedido, grade em toda a largura, contadores, filtro, tela cheia, desfazer e recentes); relatórios (histórico em abas, período, caixa, evento); fila offline para as rotas novas; redirecionamentos de `/painel/turnos` e `/painel/relatorios/turnos/{id}`; Playwright do dia completo (abrir caixa → vender → cozinha → receber → fechar com comanda pendente) |
+| `varal-web-api` | Migração de dados (abaixo); caixas cadastrados e aberturas de caixa (spec 05); limites de atenção e atraso por estação (RN-03.25); dia de operação e numeração por dia (RN-04.09, RN-04.29); tabelas de preço e tabela vigente (RN-03.20 a 03.24, RN-04.31 a 04.33); eventos (RN-04.34 a 04.37); `GET /units/{id}/operation` e `unit.operation_updated`; fila da estação agrupada por pedido e avanço do pedido inteiro (RN-04.39 a 04.45); fechamento de caixa com pendentes, preparo e evento (RN-05.28, RN-05.29); relatórios por dia, caixa e evento (spec 07); métricas do admin por dia de operação (spec 02); seed com "Caixa 1" e uma tabela "Evento"; `openapi.json`; testes de todos os CA novos e reescritos |
+| `varal-panel-web` | Início do painel orientado à tarefa e menus novos (spec 01, seção 14.2); botão "Painel" e "Trocar de estação" no balcão, nas estações e em `/estacoes` (RN-01.24 a 01.27); telas de caixas (`/caixas`, abrir, fechar) e cadastro de caixas; faixa de operação do balcão e estado sem caixa aberto; troca da tabela vigente; tabelas de preço no cardápio e no editor de produto; eventos; tela da estação no formato KDS (cartão por pedido, três níveis de tempo, grade em toda a largura, contadores, filtro, tela cheia, desfazer e recentes); relatórios (histórico em abas, período, caixa, evento); fila offline para as rotas novas; redirecionamentos de `/painel/turnos` e `/painel/relatorios/turnos/{id}`; Playwright do dia completo (abrir caixa → vender → cozinha → receber → fechar com comanda pendente) |
 | `varal-admin-web` | `pnpm gen:api`; métricas e detalhe da organização com dias de operação no lugar de turnos |
 | `varal-infra` | No `prod/README.md`, o passo de `pg_dump` manual do banco `varal` antes de aplicar a migração desta fase (ainda não há backup automático) |
 
@@ -212,7 +212,7 @@ Ordem: `varal-docs` (specs) → `varal-web-api` → `varal-panel-web` e `varal-a
 6. **Conferência:** um script compara, para cada turno antigo, venda, recebido, pendurado, perdas e diferença de caixa calculados pelo relatório de turno (antes) e pelo relatório do dia e dos caixas (depois); a migration só é aplicada em produção com o script sem diferenças no banco de desenvolvimento restaurado do `pg_dump`.
 7. **Contração (versão seguinte):** apaga `shifts`, `shift_agreements`, `shift_prices` e as colunas `shift_id` de `tabs`, `orders` e `payments`.
 
-Critérios: CA-01.16 a 01.18, CA-02.05, CA-03.03, CA-03.09 a 03.11, CA-04 (reescritos e CA-04.14 a 04.23), CA-05.08, CA-05.10 a 05.14, CA-06.03, CA-07 e CA-08.05, mais a conferência da migração sem diferenças.
+Critérios: CA-01.16 a 01.19, CA-02.05, CA-03.03, CA-03.09 a 03.12, CA-04 (reescritos e CA-04.14 a 04.24), CA-05.08, CA-05.10 a 05.14, CA-06.03, CA-07, CA-08.05 e CA-08.06, mais a conferência da migração sem diferenças.
 
 ### Fase 8 — Piloto
 
@@ -278,5 +278,10 @@ Decididos em 2026-10-02, depois do primeiro teste real (fase 7.5):
 - **Relatórios** por dia ou período, por abertura de caixa e por evento; o relatório do turno sai (spec 07).
 - **Navegação:** início do painel com uma ação principal conforme a situação da unidade; botão "Painel" e "Trocar de estação" em toda tela de operação para quem tem painel (spec 01, seção 14.2).
 - **Estação (KDS):** um pedido, um cartão, em todas as estações; avanço por item e do pedido inteiro; grade em toda a largura em telas grandes; tela cheia (spec 04, seção 8.2).
+- **Respostas às questões abertas do redesenho:**
+  - troca da tabela vigente fica com o dono e quem opera caixa (spec 04, RN-04.31);
+  - tempo do cartão em três níveis, normal → atenção (laranja, token novo na spec 08) → atrasado, com os dois limites configuráveis por estação, atenção padrão na metade do atraso (spec 03, RN-03.25; spec 04, RN-04.46);
+  - aviso no início do painel para comandas abertas há mais de 2 dias, com link para cada uma (spec 01, RN-01.28);
+  - relatório do caixa só para o dono; quem fecha o caixa vê só o resumo do próprio fechamento (spec 07, RN-07.07).
 
 Nenhum ponto pendente no momento.

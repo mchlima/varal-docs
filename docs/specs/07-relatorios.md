@@ -81,7 +81,7 @@ Um dia é um período de um dia só. Com mais de uma unidade, o relatório pode 
 
 ## 8. Acesso
 
-- **RN-07.07** Relatórios ficam no painel do dono. Colaboradores não veem relatórios no MVP, nem o do caixa que eles mesmos fecharam (veem só o resumo do fechamento, spec 05, seção 8).
+- **RN-07.07** *(confirmada em 2026-10-02)* Relatórios ficam no painel do dono, inclusive o relatório do caixa. Colaboradores não veem relatórios no MVP; quem fecha um caixa vê só o resumo do próprio fechamento (contagem, esperado e diferença por forma, pendentes), na tela de fechamento (spec 05, seção 8).
 - O admin da plataforma vê os mesmos relatórios apenas durante um "entrar como" (spec 02).
 
 ## 9. Modelo de dados
@@ -134,10 +134,9 @@ O início do painel (spec 01, seção 14.2) mostra o resumo de hoje (venda e rec
 - **Por colaborador:** inclui o dono. Comandas abertas, pedidos lançados, recebido (pagamentos não estornados do período), unidades de itens canceladas, comandas canceladas e descontos em vigor (quem deu o último desconto, pela auditoria).
 - **Acordo:** consumo = unidades não canceladas e valor (igual à venda do evento) das comandas do evento que contam na venda.
 - **Parcial (RN-07.06):** a resposta traz `partial: true`; o app mostra a faixa.
-- **Acesso (RN-07.07):** só o dono (e o admin em "entrar como", que age como o dono); colaborador recebe 403, mesmo operando caixa. Recurso de outra organização: 404.
+- **Acesso (RN-07.07):** só o dono, também no relatório do caixa (decisão do usuário em 2026-10-02) (e o admin em "entrar como", que age como o dono); colaborador recebe 403, mesmo operando caixa. Recurso de outra organização: 404.
 - **Histórico migrado:** os turnos anteriores ao redesenho entram nos relatórios pelos dias e aberturas criados na migração (plano de desenvolvimento, fase 7.5). O link antigo `/painel/relatorios/turnos/{id}` redireciona para o relatório do dia daquele turno.
 
 ## 14. Questões abertas
 
 - Exportação (CSV, PDF) e envio do relatório por e-mail ficaram fora do MVP; avaliar após o piloto, lembrando o limite de 10.000 e-mails por mês.
-- Mostrar ao colaborador que fechou o caixa o relatório daquele caixa (hoje ele vê só o resumo do fechamento).

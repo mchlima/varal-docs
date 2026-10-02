@@ -92,7 +92,8 @@ Um evento é um atendimento combinado com um contratante (casamento, festa de em
 - **RN-04.20** Avançar um item move para a próxima etapa do fluxo. Pode avançar quem tem acesso à estação em que o item está.
 - **RN-04.21** No balcão (`counter`), o colaborador também pode avançar itens que estejam na última etapa antes da final (no template: Pronto → Entregue), para registrar a entrega direto na comanda.
 - **RN-04.22** Voltar um item para a etapa anterior é permitido para quem pode avançá-lo e também para quem tem acesso à estação da etapa anterior (quem avançou por engano consegue desfazer), com registro na auditoria. Não se volta da etapa final.
-- **RN-04.23** O item guarda quando entrou na etapa atual. Ele é considerado atrasado quando passou mais de `late_after_minutes` (configuração da unidade) desde o envio do pedido sem chegar à etapa final.
+- **RN-04.23** *(ajustada em 2026-10-02)* O item guarda quando entrou na etapa atual. Ele está **em atenção** quando passou mais de `attention_after_minutes` e **atrasado** quando passou mais de `late_after_minutes` desde o envio do pedido sem chegar à etapa final, com os limites da estação em que ele está (spec 03, RN-03.25). No balcão, que não tem limites próprios, vale o atraso da estação de preparo do item.
+- **RN-04.46** O cartão do pedido na estação (RN-04.40) tem três níveis de tempo, pelo pior nível entre as suas linhas pendentes: **normal**, **atenção** e **atrasado**. Os níveis mudam sozinhos com o relógio do aparelho, sem esperar evento da API, e sempre aparecem com texto e ícone (spec 08, seção 4).
 - **RN-04.24** Avançar parte da quantidade: num item com quantidade maior que 1, quem avança pode escolher quantas unidades seguem (ex.: 2 de 3 espetos prontos); o padrão é todas. Avançar parte divide o item em duas linhas, como no cancelamento parcial (RN-04.26): uma linha nova, com a quantidade avançada, vai para a próxima etapa e aponta para a original em `split_from_id`; a original fica na etapa atual com o restante e mantém `stage_entered_at`. As duas linhas guardam a mesma cópia do vendido, e o total da comanda não muda. Voltar etapa (RN-04.22) vale para cada linha separadamente.
 - **RN-04.39** Avançar o pedido inteiro na estação: o cartão do pedido (RN-04.40) tem uma ação que avança, de uma vez, todas as linhas desse pedido que ainda estão na estação. A API trata como uma operação só (todas ou nenhuma), conferindo a `version` de cada linha; se alguma mudou em outro aparelho, responde `409 ITEM_CHANGED` com o estado atual e nada é aplicado. Cada linha vai para a próxima etapa da sua etapa atual.
 
@@ -139,7 +140,7 @@ Tabelas que saem com o redesenho (migração no plano de desenvolvimento, fase 7
 
 | Método e rota | Descrição |
 | --- | --- |
-| `GET /api/v1/units/{id}/operation` | Situação da operação: dia de operação, caixas e aberturas em andamento (spec 05), tabela vigente e efetiva, evento em andamento e agendados para hoje, contadores de comandas em aberto (incluindo as de dias anteriores) e de itens em preparo. Usada pelo início do painel e pelo balcão |
+| `GET /api/v1/units/{id}/operation` | Situação da operação: dia de operação, caixas e aberturas em andamento (spec 05), tabela vigente e efetiva, evento em andamento e agendados para hoje, contadores de comandas em aberto (incluindo as de dias anteriores), as comandas abertas há mais de 2 dias (`staleTabs`, spec 01, RN-01.28) e o número de itens em preparo. Usada pelo início do painel e pelo balcão |
 | `PUT /api/v1/units/{id}/current-price-list` | Troca a tabela vigente (`priceListId` ou `null` para "Normal"); RN-04.31 e RN-04.32 |
 | `GET /api/v1/units/{id}/events?status=&from=&to=` | Eventos da unidade |
 | `POST /api/v1/units/{id}/events` | Cadastra evento (dono) |
@@ -196,7 +197,7 @@ Inspirada nos KDS de mercado (Toast, Square, Fresh KDS, Oracle MICROS): pedidos 
 
 **Cartão (ticket)**: um por pedido, nunca um por item (RN-04.40 a RN-04.45).
 
-- **Cabeçalho:** número da comanda em letra grande e nome do cliente ("12 · Dona Marta"); "Adicional · pedido 2" quando não for o primeiro pedido da comanda (RN-04.44); hora do envio e tempo decorrido (`mm:ss`, atualizado a cada segundo; `h:mm` passada uma hora); o modo ("Paga antes") quando for. O cabeçalho usa a cor de status (spec 08, seção 4): "Novo" enquanto o cartão não for tocado; neutro depois; "Atrasado", com os minutos, quando qualquer linha pendente passar de `late_after_minutes` (RN-04.23).
+- **Cabeçalho:** número da comanda em letra grande e nome do cliente ("12 · Dona Marta"); "Adicional · pedido 2" quando não for o primeiro pedido da comanda (RN-04.44); hora do envio e tempo decorrido (`mm:ss`, atualizado a cada segundo; `h:mm` passada uma hora); o modo ("Paga antes") quando for. O cabeçalho usa a cor de status (spec 08, seção 4): "Novo" enquanto o cartão não for tocado; depois, o nível de tempo (RN-04.46): neutro no normal, "Atenção" (laranja, com ícone de ampulheta) a partir do limite de atenção da estação e "Atrasado" (com os minutos) a partir do limite de atraso. Um cartão novo que entra em atenção ou atraso antes de ser tocado mostra a cor do tempo, com a marca "Novo" mantida como chip.
 - **Linhas:** quantidade e produto em 20 px negrito; modificadores logo abaixo, um por linha; observação em destaque, em bloco próprio com ícone e o texto "Obs.:"; chip da etapa da linha. Linha que saiu da estação fica riscada com ícone de confirmação (RN-04.41); linha cancelada fica riscada com o chip "Cancelado" e o motivo (RN-04.45).
 - **Rodapé do cartão:** "+ N itens em outra estação", em texto secundário, quando houver (RN-04.43).
 - **Avançar:**
@@ -209,7 +210,7 @@ Inspirada nos KDS de mercado (Toast, Square, Fresh KDS, Oracle MICROS): pedidos 
 
 - Celular (até 640 px): uma coluna, cartões em lista vertical, mais antigo no topo.
 - Tablet, TV e computador: colunas de largura fixa (cerca de 300 px, ajustável em "Tamanho do cartão": pequeno, médio, grande) que ocupam **toda a largura da tela**, sem margem de conteúdo centralizado. A ordem é por chegada, da esquerda para a direita e de cima para baixo; o mais antigo fica sempre no canto superior esquerdo. Um cartão maior que a coluna continua na coluna seguinte com a marca "continua" (como os KDS de mercado), em vez de cortar.
-- **Topo:** nome da estação; contadores por etapa e de atrasados ("Novos 3 · Preparando 5 · Atrasados 1"); filtro por etapa (os próprios contadores funcionam como filtro, com "Todos" por padrão); botões "Recentes", "Esgotados" (atalho do cardápio, spec 03) e "Tela cheia".
+- **Topo:** nome da estação; contadores por etapa e por nível de tempo ("Novos 3 · Preparando 5 · Atenção 2 · Atrasados 1"); filtro por etapa (os próprios contadores funcionam como filtro, com "Todos" por padrão); botões "Recentes", "Esgotados" (atalho do cardápio, spec 03) e "Tela cheia".
 - **Tela cheia:** usa a Fullscreen API; esconde o cabeçalho do app e deixa só o topo da estação. Sai pelo botão "Sair da tela cheia" ou pelo gesto do navegador. Se o navegador não suportar (iPhone), a tela explica que instalar o app (spec 01) já tira as barras do navegador.
 
 **Alertas e aparelho** (sem mudança):
@@ -240,7 +241,7 @@ A troca fica em dois lugares: no balcão (faixa de operação, seção 8.1) e no
 - **CA-04.08** Cancelar 1 de 3 espetos já em preparo gera uma linha cancelada de 1 marcada como perda e uma linha ativa de 2.
 - **CA-04.09** *(reescrito)* Fechar o último caixa com uma comanda aberta é aceito; no dia seguinte, depois de abrir o caixa, a comanda continua no varal com o mesmo número e a data em que foi aberta.
 - **CA-04.10** Em comanda paga antes, nenhum item chega à cozinha antes de o pagamento ser registrado.
-- **CA-04.11** Um item fica marcado como atrasado depois de `late_after_minutes` sem chegar à etapa final.
+- **CA-04.11** *(ajustado)* Um item fica marcado em atenção depois de `attention_after_minutes` e atrasado depois de `late_after_minutes` da estação em que está, sem chegar à etapa final.
 - **CA-04.12** A tela da estação continua recebendo pedidos depois de o aparelho perder e recuperar a conexão, sem itens duplicados ou faltando.
 - **CA-04.13** Avançar 2 de um item com quantidade 3 deixa 1 na etapa atual e 2 na próxima, em duas linhas ligadas por `split_from_id`, sem mudar o total da comanda.
 - **CA-04.14** Com um evento em andamento, uma comanda nova fica ligada a ele e usa a tabela do evento; a API recusa trocar a tabela vigente com `EVENT_IN_PROGRESS`; depois de encerrado o evento, comandas novas não têm evento e voltam à tabela vigente da unidade.
@@ -253,9 +254,14 @@ A troca fica em dois lugares: no balcão (faixa de operação, seção 8.1) e no
 - **CA-04.21** Um pedido com espeto (Cozinha) e pastel (Fritadeira) aparece na Cozinha com o espeto e "+ 1 item em outra estação", e na Fritadeira com o pastel e "+ 1 item em outra estação".
 - **CA-04.22** Um segundo pedido na comanda 12 aparece num cartão novo marcado "Adicional · pedido 2", sem alterar o cartão do primeiro pedido.
 - **CA-04.23** Cancelar uma linha de um cartão na tela a mostra riscada com "Cancelado" e o motivo no mesmo cartão, com som e vibração na estação.
+- **CA-04.24** Numa estação com atenção em 7 e atraso em 15 minutos, um cartão enviado há 8 minutos mostra "Atenção" em laranja com ícone, e há 16 minutos, "Atrasado" com os minutos; mudar a atenção da estação para 10 volta o cartão de 8 minutos ao normal sem recarregar a tela.
 
 ## 10. Questões abertas
 
-- Nível de "atenção" no tempo do cartão (verde → amarelo → vermelho, como nos KDS de mercado): a spec 08 reserva o amarelo para "Preparando", então o MVP tem só dois níveis (normal e atrasado). Avaliar com o piloto se falta um aviso antes do atraso.
-- Quem pode trocar a tabela vigente: ficou com o dono e quem opera caixa (RN-04.31). Confirmar se qualquer colaborador do balcão deveria poder.
-- Comandas de dias anteriores esquecidas em aberto: o MVP só as mostra com a data; avaliar um aviso no início do painel quando houver comanda aberta há mais de 2 dias.
+Nenhuma no momento.
+
+## 11. Decisões de 2026-10-02 (respostas do usuário)
+
+- Troca da tabela vigente: fica com o dono e quem opera caixa (RN-04.31 confirmada).
+- Tempo do cartão da estação em três níveis, normal → atenção → atrasado, com limites por estação (RN-04.23, RN-04.46; spec 03, RN-03.25; cor na spec 08).
+- Comandas abertas há mais de 2 dias geram aviso no início do painel (spec 01, RN-01.28).

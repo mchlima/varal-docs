@@ -253,7 +253,7 @@ Tipos abreviados: `uuid`, `text`, `int`, `bool`, `ts` (`timestamptz`), `jsonb`. 
 | `organization_id` | uuid | FK |
 | `name` | text | único dentro da organização |
 | `active` | bool | |
-| `late_after_minutes` | int | padrão 15; usado na spec 04 |
+| `late_after_minutes` | int | padrão 15; desde 2026-10-02, padrão dos limites das estações novas (spec 03, RN-03.25) |
 
 **users** (donos)
 
@@ -389,6 +389,7 @@ Redesenho de 2026-10-02, depois do teste real: o painel era uma lista de atalhos
 | Caixa aberto | **Abrir balcão** (vai ao `/balcao`; com mais de um balcão na unidade, pergunta qual) | Caixas abertos, com responsável e desde quando; tabela vigente com "Trocar" (spec 04, RN-04.31); evento em andamento com "Encerrar"; para o dono, venda e recebido parciais de hoje com link para o relatório do dia; "Estações" e "Fechar caixa" |
 | Caixa aberto desde um dia anterior (spec 05, RN-05.26) | **Fechar caixa**, com o aviso "Caixa 1 aberto desde ontem, 17:02" | "Abrir balcão" |
 
+- **RN-01.28** *(2026-10-02)* Quando a unidade tiver comandas em `open` ou `closing` abertas há mais de 2 dias (dia de operação da comanda anterior ao dia de operação atual menos 2; ex.: em 05/10, as abertas em 02/10 ou antes), o início mostra, abaixo da ação principal, o aviso "Comandas abertas há mais de 2 dias" com a lista: número, nome, total e desde quando, cada uma com link para a comanda no balcão (`/balcao/comandas/{numero}`). O aviso é informativo (estilo de aviso, não ação principal), aparece para o dono e para quem opera caixa e some quando as comandas são pagas, penduradas ou canceladas. A lista vem em `GET /units/{id}/operation` (`staleTabs`).
 - Com mais de uma unidade, o topo do início tem a escolha da unidade (lembrada no aparelho) e um resumo de uma linha por unidade ("Centro: caixa aberto · Praia: caixa fechado").
 - Abaixo da ação, em estilo secundário e compacto, o resto: Fiado, Relatórios, Eventos, Cardápio e tabelas de preço, Unidades e caixas, Colaboradores, Acesso da equipe, Acessos de suporte (cada um conforme a RN-01.23). O primeiro acesso de um dono sem cardápio mostra antes uma lista de "Primeiros passos" (cadastrar produtos, convidar a equipe), que some quando concluída.
 
@@ -437,6 +438,7 @@ Redesenho de 2026-10-02, depois do teste real: o painel era uma lista de atalhos
 - **CA-01.16** O dono que toca em "Balcão e estações" no painel e abre a Cozinha volta ao painel com um toque em "Painel" e também com o voltar do navegador.
 - **CA-01.17** Um colaborador só com a estação Cozinha entra direto nela, sem botão "Painel" nem "Trocar de estação".
 - **CA-01.18** Sem caixa aberto, o início do painel tem "Abrir caixa" como único botão principal; depois de abrir, o botão principal passa a ser "Abrir balcão" sem recarregar a tela.
+- **CA-01.19** Com a comanda 7 aberta em 02/10 e o dia de operação em 05/10, o início do painel mostra o aviso com a comanda 7, e tocar nela abre a comanda no balcão; depois de paga, o aviso some.
 
 ## 16. Questões abertas
 
