@@ -60,7 +60,7 @@ Sem tabelas novas: relatórios são consultas sobre turnos, comandas, itens, pag
 | Método e rota | Descrição |
 | --- | --- |
 | `GET /api/v1/shifts/{id}/report` | Relatório completo do turno (seção 4) |
-| `GET /api/v1/reports/shifts?unitId=&from=&to=&type=` | Histórico com totais (seção 5) |
+| `GET /api/v1/reports/shifts?unitId=&from=&to=&type=&limit=&cursor=` | Histórico com totais (seção 5), paginado por cursor |
 
 ## 9. Telas
 
@@ -78,6 +78,21 @@ Sem tabelas novas: relatórios são consultas sobre turnos, comandas, itens, pag
 - **CA-07.05** Mudar o preço de um produto depois do turno não altera o relatório desse turno.
 - **CA-07.06** Um colaborador recebe 403 ao pedir um relatório.
 
-## 11. Questões abertas
+## 11. Decisões da implementação (fase 7)
+
+- **Datas:** `from` e `to` são dias em America/Sao_Paulo (`AAAA-MM-DD`, `to` inclusive); um turno entra no período pelo dia da abertura. Sem datas, os últimos 30 dias até hoje; o período vai de 1 a 366 dias. Os atalhos (hoje, 7 dias, 30 dias, mês atual) são do app.
+- **Histórico:** sem `unitId`, traz todas as unidades da organização. Inclui turnos abertos (valores parciais). Ordenado pela abertura, mais recente primeiro, paginado por cursor (`limit` até 100); os totais do topo são do período inteiro, não só da página. Cada linha traz também número de comandas, perdas e descontos.
+- **Pendurado (RN-07.03):** total da comanda menos os pagamentos feitos antes de pendurar (que não podem mais ser estornados, spec 06). Conta comandas hoje em `on_credit` ou já `settled`; o relatório mostra também o saldo atual de cada uma.
+- **Recebido (RN-07.02):** pagamentos não estornados com `shift_id` do turno, separados em vendas do turno e quitações de fiado, no total e por forma de pagamento.
+- **Perdas (RN-07.04):** itens cancelados com `wasted` de qualquer comanda do turno, inclusive das canceladas, em valor e unidades.
+- **Por produto:** só itens não cancelados das comandas que contam na venda, agrupados pela cópia do vendido (produto e nome gravado); o valor é antes do desconto da comanda (o desconto aparece no resumo). Modificadores com acréscimo aparecem dentro do produto, com quantidade e valor.
+- **Por colaborador:** inclui o dono. Comandas abertas, pedidos lançados, recebido (pagamentos não estornados do turno), unidades de itens canceladas, comandas canceladas e descontos em vigor (quem deu o último desconto, pela auditoria).
+- **Caixas:** os mesmos dados de `GET /shifts/{id}/cash-registers` (esperado, informado e diferença por forma, sangrias, suprimentos, observação), com o responsável e a diferença total. A diferença de caixa do turno é a soma das diferenças gravadas no fechamento de cada caixa.
+- **Acordo:** consumo = unidades não canceladas e valor (igual à venda) das comandas que contam na venda; diferença = quantidade combinada − consumida (negativa se passou do combinado; vazia sem quantidade combinada).
+- **Turno aberto (RN-07.06):** a resposta traz `partial: true`; o app mostra a faixa.
+- **Acesso (RN-07.07):** só o dono (e o admin em "entrar como", que age como o dono); colaborador recebe 403, mesmo operando caixa. Turno ou unidade de outra organização: 404.
+- **Desempenho:** os totais saem de uma única consulta agregada por turno, a mesma no relatório e no histórico; índices em `payments (organization_id, shift_id)` e `shifts (organization_id, opened_at)`. Sem visões materializadas por enquanto.
+
+## 12. Questões abertas
 
 - Exportação (CSV, PDF) e envio do relatório por e-mail ficaram fora do MVP; avaliar após o piloto, lembrando o limite de 10.000 e-mails por mês.
