@@ -28,7 +28,7 @@ Permitir que a barraca feche uma comanda sem receber na hora, em nome de um clie
   - referência (até 60 caracteres, ex.: "apto 42, bloco B", "setor financeiro", "barraca do lado");
   - observação (até 140 caracteres, ex.: "filho da dona Maria").
 - **RN-06.02** Telefone e CPF, quando informados, são únicos dentro da unidade. Ao pendurar, o balcão busca por nome, telefone, CPF ou referência e oferece o cadastro rápido se não encontrar. Na lista de resultados, cada cliente aparece com os dados de identificação que tiver, para não confundir homônimos; ao cadastrar um nome que já existe sem nenhum dado de identificação, o balcão avisa e sugere preencher a referência.
-- **RN-06.03** Cliente com valor a receber não pode ser excluído. Cliente sem pendências pode ser excluído a pedido (LGPD): nome e dados de identificação são apagados e o nome vira "Cliente removido", mantendo as comandas para o histórico.
+- **RN-06.03** Cliente com valor a receber não pode ser excluído. Cliente sem pendências pode ser excluído a pedido (LGPD): nome e dados de identificação são apagados e o nome vira "Cliente removido", mantendo as comandas para o histórico. Na mesma operação, o nome do cliente digitado nas comandas ligadas a ele (`customer_name`) também passa a "Cliente removido"; as comandas continuam no histórico e nos relatórios (spec 07) com o nome trocado.
 
 ## 4. Pendurar
 
@@ -60,7 +60,7 @@ O saldo a receber de uma comanda é `total − soma dos pagamentos não estornad
 
 | Método e rota | Descrição |
 | --- | --- |
-| `GET /api/v1/units/{id}/customers?q=` | Busca por nome, telefone, CPF ou referência |
+| `GET /api/v1/units/{id}/customers?q=&limit=&cursor=` | Busca por nome, telefone, CPF ou referência, em ordem de nome, paginada por cursor (`{ data, nextCursor }`) |
 | `GET /api/v1/customers/{id}` | Cliente com as comandas, o saldo e o histórico de quitações |
 | `POST /api/v1/units/{id}/customers` | Cadastro |
 | `PATCH /api/v1/customers/{id}` | Edição |
@@ -85,7 +85,7 @@ Eventos (sala `unit`): `tab.updated` ao pendurar e a cada quitação.
 - **CA-06.02** A API recusa pendurar comanda em `open`.
 - **CA-06.03** Uma quitação de R$ 60,00 feita no turno seguinte entra no caixa desse turno, deixa saldo de R$ 40,00 e a comanda continua `on_credit`; uma segunda de R$ 40,00 deixa a comanda `settled`.
 - **CA-06.04** Cliente de uma unidade não aparece na busca de outra unidade da mesma organização.
-- **CA-06.05** A API recusa excluir cliente com saldo a receber; sem saldo, o cliente é anonimizado e as comandas continuam no histórico.
+- **CA-06.05** A API recusa excluir cliente com saldo a receber; sem saldo, o cliente é anonimizado e as comandas continuam no histórico, com o nome do cliente trocado por "Cliente removido".
 - **CA-06.06** Um cliente pode ser cadastrado só com o nome; dois clientes com o mesmo nome aparecem na busca com seus dados de identificação, e telefone ou CPF repetido na mesma unidade é recusado.
 
 ## 10. Questões abertas
